@@ -1,10 +1,31 @@
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { db, pool } from "./index";
+import {
+  syncConfiguredStores,
+  type StoreBootstrapDb,
+} from "@/server/store-config";
 
-async function main() {
-  await migrate(db, {
+type MigrateAndBootstrapArgs = {
+  database?: typeof db;
+  runMigrate?: typeof migrate;
+  bootstrapStores?: () => Promise<unknown>;
+};
+
+export async function migrateAndBootstrapStores({
+  database = db,
+  runMigrate = migrate,
+  bootstrapStores = () =>
+    syncConfiguredStores(undefined, database as unknown as StoreBootstrapDb),
+}: MigrateAndBootstrapArgs = {}) {
+  await runMigrate(database, {
     migrationsFolder: "drizzle",
   });
+
+  await bootstrapStores();
+}
+
+async function main() {
+  await migrateAndBootstrapStores();
 }
 
 main()
