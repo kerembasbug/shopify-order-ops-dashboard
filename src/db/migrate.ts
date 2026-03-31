@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { db, pool } from "./index";
 import {
@@ -28,11 +29,13 @@ async function main() {
   await migrateAndBootstrapStores();
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await pool.end();
-  });
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await pool.end();
+    });
+}
