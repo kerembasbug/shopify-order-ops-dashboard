@@ -29,3 +29,18 @@ export async function verifySessionToken(
 
   return verified.payload;
 }
+
+export async function getSessionFromToken(
+  token: string | undefined,
+  secret: string,
+): Promise<JWTPayload | null> {
+  if (!token) {
+    return null;
+  }
+
+  try {
+    return await verifySessionToken(token, secret);
+  } catch {
+    return null;
+  }
+}

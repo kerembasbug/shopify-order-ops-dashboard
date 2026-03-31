@@ -1,4 +1,24 @@
-export default function HomePage() {
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { getSessionFromToken, SESSION_COOKIE_NAME } from "@/server/auth";
+import { getEnv } from "@/server/env";
+
+export default async function HomePage() {
+  const sessionToken = cookies().get(SESSION_COOKIE_NAME)?.value;
+
+  if (!sessionToken) {
+    redirect("/login");
+  }
+
+  const session = await getSessionFromToken(
+    sessionToken,
+    getEnv().appSessionSecret,
+  );
+
+  if (!session) {
+    redirect("/login");
+  }
+
   return (
     <main
       style={{
