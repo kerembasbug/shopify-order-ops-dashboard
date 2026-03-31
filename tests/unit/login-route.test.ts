@@ -52,4 +52,21 @@ describe("POST /api/auth/login", () => {
       }),
     );
   });
+
+  it("rejects an invalid password without setting the session cookie", async () => {
+    const { POST } = await import("@/app/api/auth/login/route");
+    const formData = new FormData();
+
+    formData.set("password", "wrong-password");
+
+    const response = await POST(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        body: formData,
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(cookieSetMock).not.toHaveBeenCalled();
+  });
 });

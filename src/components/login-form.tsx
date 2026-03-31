@@ -12,22 +12,32 @@ export function LoginForm() {
     setIsSubmitting(true);
 
     const form = event.currentTarget;
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      body: new FormData(form),
-    });
+    let shouldResetSubmitting = true;
 
-    if (response.ok) {
-      window.location.href = "/";
-      return;
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        body: new FormData(form),
+      });
+
+      if (response.ok) {
+        shouldResetSubmitting = false;
+        window.location.href = "/";
+        return;
+      }
+
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      setError(payload?.error ?? "Unable to log in.");
+    } catch {
+      setError("Unable to log in.");
+    } finally {
+      if (shouldResetSubmitting) {
+        setIsSubmitting(false);
+      }
     }
-
-    const payload = (await response.json().catch(() => null)) as
-      | { error?: string }
-      | null;
-
-    setError(payload?.error ?? "Unable to log in.");
-    setIsSubmitting(false);
   }
 
   return (
