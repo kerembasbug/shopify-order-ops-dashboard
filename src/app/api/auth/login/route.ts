@@ -3,6 +3,20 @@ import { NextResponse } from "next/server";
 import { createSessionToken, SESSION_COOKIE_NAME } from "@/server/auth";
 import { getEnv } from "@/server/env";
 
+function shouldUseSecureCookie(request: Request) {
+  if (process.env.NODE_ENV !== "production") {
+    return false;
+  }
+
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+
+  if (forwardedProto) {
+    return forwardedProto.split(",")[0]?.trim() === "https";
+  }
+
+  return new URL(request.url).protocol === "https:";
+}
+
 export async function POST(request: Request) {
   const env = getEnv();
   const formData = await request.formData();
@@ -22,7 +36,7 @@ export async function POST(request: Request) {
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookie(request),
     maxAge: 60 * 60 * 12,
   });
 
