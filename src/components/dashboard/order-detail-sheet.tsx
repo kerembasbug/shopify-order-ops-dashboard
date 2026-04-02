@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import {
   formatCurrency,
@@ -7,6 +8,7 @@ import {
   formatStatusLabel,
   removeQueryParam,
 } from "@/components/dashboard/dashboard-utils";
+import { NoteComposer } from "@/components/dashboard/note-composer";
 
 type FulfillmentDetail = {
   id: number;
@@ -206,6 +208,7 @@ export function OrderDetailSheet({
           <h3>Notes</h3>
           <p>{order.notes.length} item(s)</p>
         </div>
+        <NoteComposer orderId={order.id} />
         {order.notes.length === 0 ? (
           <p className="detail-sheet__empty-copy">No operator notes yet.</p>
         ) : (
@@ -227,6 +230,10 @@ export function OrderDetailSheet({
         <div className="detail-sheet__section-heading">
           <h3>Issues</h3>
           <p>{order.issues.length} item(s)</p>
+        </div>
+        <div className="detail-sheet__callout" role="note">
+          <strong>OpenClaw agent managed.</strong> Issue and dispute records are created and
+          updated by the OpenClaw workflow, so the dashboard stays read-only for issue handling.
         </div>
         {order.issues.length === 0 ? (
           <p className="detail-sheet__empty-copy">No active dispute or issue records.</p>

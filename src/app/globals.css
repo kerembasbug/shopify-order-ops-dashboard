@@ -550,6 +550,24 @@ button {
   border-top: 1px solid rgba(116, 95, 69, 0.12);
 }
 
+.detail-sheet__callout,
+.note-composer {
+  position: relative;
+  z-index: 1;
+  padding: 14px;
+  border: 1px solid rgba(116, 95, 69, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.detail-sheet__callout {
+  color: var(--bg-muted);
+}
+
+.detail-sheet__callout strong {
+  color: var(--bg-ink);
+}
+
 .detail-sheet__meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -583,6 +601,39 @@ button {
 
 .detail-sheet__list a {
   font-weight: 600;
+}
+
+.note-composer {
+  display: grid;
+  gap: 12px;
+}
+
+.note-composer__field {
+  gap: 8px;
+}
+
+.note-composer__input {
+  width: 100%;
+  min-height: 108px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 252, 247, 0.88);
+  color: var(--bg-ink);
+  resize: vertical;
+}
+
+.note-composer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+}
+
+.note-composer__hint {
+  margin: 0;
+  color: var(--bg-muted);
+  font-size: 13px;
 }
 
 .sync-run-item__store {
