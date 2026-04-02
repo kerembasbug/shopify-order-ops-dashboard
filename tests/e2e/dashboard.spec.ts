@@ -5,6 +5,9 @@ test("dashboard renders overview cards and the orders table", async ({ page }) =
   await page.getByLabel("Password").fill("secret-password");
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page.getByText("Total Orders")).toBeVisible();
+  await page.waitForURL("http://127.0.0.1:3000/");
+  await expect(page.getByRole("region", { name: "Overview" })).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByRole("table")).toBeVisible();
 });

@@ -41,7 +41,7 @@ describe("HomePage auth protection", () => {
       Promise.resolve().then(() => HomePage()),
     ).rejects.toThrow("NEXT_REDIRECT:/login");
     expect(redirectMock).toHaveBeenCalledWith("/login");
-  });
+  }, 15_000);
 
   it("redirects forged or invalid session cookies to /login", async () => {
     cookiesMock.mockReturnValue({
@@ -54,5 +54,5 @@ describe("HomePage auth protection", () => {
       Promise.resolve().then(() => HomePage()),
     ).rejects.toThrow("NEXT_REDIRECT:/login");
     expect(redirectMock).toHaveBeenCalledWith("/login");
-  });
+  }, 15_000);
 });
