@@ -9,5 +9,13 @@ test("dashboard renders overview cards and the orders table", async ({ page }) =
   await expect(page.getByRole("region", { name: "Overview" })).toBeVisible({
     timeout: 15_000,
   });
+  await expect(page.getByText("Selected Sales")).toBeVisible();
+  await expect(page.getByText("Previous Sales")).toBeVisible();
+  await expect(page.getByText("Growth")).toBeVisible();
   await expect(page.getByRole("table")).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Sales Channel" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Landing Page" })).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Referrer / Source" }),
+  ).toBeVisible();
 });
