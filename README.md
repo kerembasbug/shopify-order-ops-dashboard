@@ -23,7 +23,7 @@ Use Node `22.12+` locally, or run the app through Docker/Coolify so the bundled 
 1. Create a PostgreSQL service and capture its connection string.
 2. Add a web service from this GitHub repo using the included `Dockerfile`.
 3. Set the startup command for the web service to `pnpm start`.
-4. Add a second service from the same repo and image, then set its startup command to `pnpm worker`.
+4. Add a second service from the same repo for the worker and point it at `Dockerfile.worker`.
 5. Configure the same environment variables on both services:
    - `DATABASE_URL`
    - `APP_PASSWORD`
