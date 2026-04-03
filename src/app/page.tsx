@@ -6,7 +6,7 @@ import { OrderDetailSheet } from "@/components/dashboard/order-detail-sheet";
 import { OrdersTable } from "@/components/dashboard/orders-table";
 import { OverviewStrip, type OverviewCard } from "@/components/dashboard/overview-strip";
 import { SyncStatusCard } from "@/components/dashboard/sync-status-card";
-import { formatCurrency } from "@/components/dashboard/dashboard-utils";
+import { formatCurrencyScope, formatDate } from "@/components/dashboard/dashboard-utils";
 import { getSessionFromToken, SESSION_COOKIE_NAME } from "@/server/auth";
 import { getEnv } from "@/server/env";
 import { parseOrderFilters } from "@/server/orders/filters";
@@ -23,6 +23,8 @@ type PageSearchParams = Record<string, string | string[] | undefined>;
 type HomePageProps = {
   searchParams?: PageSearchParams | Promise<PageSearchParams>;
 };
+
+type OverviewData = Awaited<ReturnType<typeof getDashboardPageData>>["overview"];
 
 function toURLSearchParams(searchParams: PageSearchParams) {
   const normalized = new URLSearchParams();
@@ -70,8 +72,18 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
     }>,
     overview: {
       filters,
+      comparisonRange: {
+        currentFrom: filters.dateFrom ?? "",
+        currentTo: filters.dateTo ?? "",
+        previousFrom: filters.dateFrom ?? "",
+        previousTo: filters.dateTo ?? "",
+      },
       totalOrders: 0,
       totalSalesAmount: "0",
+      previousSalesAmount: "0",
+      currencyCodes: [],
+      deltaDirection: "flat" as const,
+      deltaPercentageLabel: "0%",
       fulfilledOrders: 0,
       unfulfilledOrders: 0,
       openIssuesCount: 0,
@@ -99,70 +111,88 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
   };
 }
 
-function buildOverviewCards(
-  orders: Array<{ currencyCode: string | null }>,
-  overview: Awaited<ReturnType<typeof getDashboardPageData>>["overview"],
-): OverviewCard[] {
-  const distinctCurrencies = Array.from(
-    new Set(
-      orders
-        .map((order) => order.currencyCode)
-        .filter((currency): currency is string => Boolean(currency)),
-    ),
+function describeComparisonRange(from: string, to: string) {
+  return `${formatDate(from)} to ${formatDate(to)}`;
+}
+
+function buildSalesCard(
+  amount: string,
+  currencyCodes: string[],
+  rangeLabel: string,
+  periodLabel: string,
+) {
+  return formatCurrencyScope(amount, currencyCodes, `${periodLabel}: ${rangeLabel}`);
+}
+
+export function buildOverviewCards(overview: OverviewData): OverviewCard[] {
+  const currentRangeLabel = describeComparisonRange(
+    overview.comparisonRange.currentFrom,
+    overview.comparisonRange.currentTo,
   );
-  const isCompleteOrderSet = overview.totalOrders === orders.length;
-  const salesCard =
-    overview.totalOrders === 0
-      ? {
-          value: "—",
-          hint: "No orders in the current result set",
-        }
-      : overview.filters.storeId && isCompleteOrderSet && distinctCurrencies.length === 1
-        ? {
-            value: formatCurrency(overview.totalSalesAmount, distinctCurrencies[0]),
-            hint: `Gross order value in ${distinctCurrencies[0]}`,
-          }
-        : {
-            value: "Mixed scope",
-            hint: "Select a single-store scope for a currency-safe total",
-          };
+  const previousRangeLabel = describeComparisonRange(
+    overview.comparisonRange.previousFrom,
+    overview.comparisonRange.previousTo,
+  );
 
   return [
     {
-      label: "Total Orders",
-      value: overview.totalOrders.toLocaleString("en-US"),
-      hint: "Current result set",
+      label: "Selected Sales",
+      ...buildSalesCard(
+        overview.totalSalesAmount,
+        overview.currencyCodes,
+        currentRangeLabel,
+        "Current period",
+      ),
+      tone: "accent" as const,
+    },
+    {
+      label: "Previous Sales",
+      ...buildSalesCard(
+        overview.previousSalesAmount,
+        overview.currencyCodes,
+        previousRangeLabel,
+        "Previous period",
+      ),
       tone: "default" as const,
     },
     {
-      label: "Total Sales",
-      value: salesCard.value,
-      hint: salesCard.hint,
-      tone: "accent" as const,
+      label: "Growth",
+      value: overview.deltaPercentageLabel,
+      hint: `Compared with ${previousRangeLabel}`,
+      tone:
+        overview.deltaDirection === "up"
+          ? ("success" as const)
+          : overview.deltaDirection === "down"
+            ? ("danger" as const)
+            : ("default" as const),
+      trend: {
+        direction: overview.deltaDirection,
+        label: "Compared with previous period",
+      },
+    },
+    {
+      label: "Orders",
+      value: overview.totalOrders.toLocaleString("en-US"),
+      hint: `Orders in ${currentRangeLabel}`,
+      tone: "default" as const,
     },
     {
       label: "Fulfilled",
       value: overview.fulfilledOrders.toLocaleString("en-US"),
-      hint: "Closed shipment records",
+      hint: `Fulfilled orders in ${currentRangeLabel}`,
       tone: "success" as const,
     },
     {
       label: "Unfulfilled",
       value: overview.unfulfilledOrders.toLocaleString("en-US"),
-      hint: "Needs operational follow-through",
+      hint: `Unfulfilled orders in ${currentRangeLabel}`,
       tone: "default" as const,
     },
     {
       label: "Open Issues",
       value: overview.openIssuesCount.toLocaleString("en-US"),
-      hint: "Agent or ops flags still open",
+      hint: `Open issues in ${currentRangeLabel}`,
       tone: overview.openIssuesCount > 0 ? "danger" : "default",
-    },
-    {
-      label: "Orders With Notes",
-      value: overview.ordersWithNotesCount.toLocaleString("en-US"),
-      hint: "Manual annotations present",
-      tone: "accent" as const,
     },
   ];
 }
@@ -252,7 +282,7 @@ export default async function HomePage(props: HomePageProps) {
         </section>
       ))}
 
-      <OverviewStrip cards={buildOverviewCards(dashboardData.orders, dashboardData.overview)} />
+      <OverviewStrip cards={buildOverviewCards(dashboardData.overview)} />
 
       <div className="dashboard-grid">
         <section className="dashboard-main">

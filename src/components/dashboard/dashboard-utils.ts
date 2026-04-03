@@ -12,6 +12,28 @@ export function formatCurrency(amount: string | number, currencyCode?: string | 
   }).format(numericAmount);
 }
 
+export function formatCurrencyScope(
+  amount: string | number,
+  currencyCodes: string[],
+  hint: string,
+) {
+  const distinctCurrencyCodes = Array.from(
+    new Set(currencyCodes.filter((currencyCode): currencyCode is string => Boolean(currencyCode))),
+  );
+
+  if (distinctCurrencyCodes.length === 1) {
+    return {
+      value: formatCurrency(amount, distinctCurrencyCodes[0]),
+      hint,
+    };
+  }
+
+  return {
+    value: "Multi-currency",
+    hint: `${hint} Currency mix prevents a reliable total.`,
+  };
+}
+
 export function formatDateTime(value: Date | string | null | undefined) {
   if (!value) {
     return "—";
