@@ -34,16 +34,14 @@ const ORDERS_QUERY = `
             countryCodeV2
           }
           tags
-          fulfillments(first: 10) {
-            nodes {
-              id
-              status
-              createdAt
-              trackingInfo {
-                number
-                url
-                company
-              }
+          fulfillments {
+            id
+            status
+            createdAt
+            trackingInfo {
+              number
+              url
+              company
             }
           }
         }
@@ -61,9 +59,11 @@ type ShopifyOrdersGraphqlPayload = {
       edges?: Array<{
         cursor: string;
         node: Omit<ShopifyOrderNode, "fulfillments"> & {
-          fulfillments?: {
-            nodes?: ShopifyFulfillmentNode[];
-          };
+          fulfillments?:
+            | ShopifyFulfillmentNode[]
+            | {
+                nodes?: ShopifyFulfillmentNode[];
+              };
         };
       }>;
       pageInfo?: {
@@ -130,7 +130,9 @@ export async function fetchOrders({
   return {
     orders: edges.map((edge) => ({
       ...edge.node,
-      fulfillments: edge.node.fulfillments?.nodes ?? [],
+      fulfillments: Array.isArray(edge.node.fulfillments)
+        ? edge.node.fulfillments
+        : edge.node.fulfillments?.nodes ?? [],
     })),
     nextCursor: hasNextPage ? edges.at(-1)?.cursor ?? null : null,
   };
