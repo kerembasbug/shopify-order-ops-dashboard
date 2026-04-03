@@ -64,6 +64,9 @@ export async function startWorker(deps: WorkerDeps = {}) {
       },
       job.data,
     );
+  }, {
+    localConcurrency: 4,
+    pollingIntervalSeconds: 1,
   });
 
   await queueClient.subscribe<Record<string, never>>(

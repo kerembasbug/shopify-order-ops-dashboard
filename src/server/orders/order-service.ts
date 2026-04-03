@@ -432,6 +432,13 @@ export async function getOrderDetail(orderId: number) {
 }
 
 export async function listSyncRuns(limit = 20) {
+  const statusPriority = sql<number>`case
+    when ${syncRuns.status} = 'running' then 0
+    when ${syncRuns.status} = 'failed' then 1
+    when ${syncRuns.status} = 'succeeded' then 2
+    else 3
+  end`;
+
   return db
     .select({
       id: syncRuns.id,
@@ -447,6 +454,6 @@ export async function listSyncRuns(limit = 20) {
     })
     .from(syncRuns)
     .innerJoin(stores, eq(stores.id, syncRuns.storeId))
-    .orderBy(desc(syncRuns.startedAt))
+    .orderBy(statusPriority, desc(syncRuns.startedAt))
     .limit(limit);
 }

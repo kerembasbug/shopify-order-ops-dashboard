@@ -11,6 +11,12 @@ export type QueueJob<T> = {
   data: T;
 };
 
+export type QueueSubscribeOptions = {
+  batchSize?: number;
+  localConcurrency?: number;
+  pollingIntervalSeconds?: number;
+};
+
 export type QueueClient = {
   start: () => Promise<void>;
   stop: () => Promise<void>;
@@ -18,6 +24,7 @@ export type QueueClient = {
   subscribe: <T extends object>(
     name: string,
     handler: (job: QueueJob<T>) => Promise<void>,
+    options?: QueueSubscribeOptions,
   ) => Promise<string>;
   schedule: (
     scheduleName: string,
@@ -104,16 +111,21 @@ export function createQueueClient(
       return boss.send(name, data);
     },
 
-    async subscribe(name, handler) {
+    async subscribe(name, handler, options) {
       await ensureStarted();
       await ensureQueuesProvisioned();
-      return boss.work(name, async (jobs) => {
+
+      const wrappedHandler = async (jobs: Array<{ data: unknown }>) => {
         for (const job of jobs) {
           await handler({
             data: job.data as Parameters<typeof handler>[0]["data"],
           });
         }
-      });
+      };
+
+      return options
+        ? boss.work(name, options, wrappedHandler)
+        : boss.work(name, wrappedHandler);
     },
 
     async schedule(scheduleName, cron, jobName, data) {

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const startMock = vi.fn();
 const sendMock = vi.fn();
 const subscribeMock = vi.fn();
+const workMock = vi.fn();
 const scheduleMock = vi.fn();
 const stopMock = vi.fn();
 const createQueueMock = vi.fn();
@@ -24,6 +25,7 @@ describe("queue", () => {
     startMock.mockReset().mockResolvedValue(undefined);
     sendMock.mockReset().mockResolvedValue("job-id");
     subscribeMock.mockReset().mockResolvedValue("subscription-id");
+    workMock.mockReset().mockResolvedValue("worker-id");
     scheduleMock.mockReset().mockResolvedValue("schedule-id");
     stopMock.mockReset().mockResolvedValue(undefined);
     createQueueMock.mockReset().mockResolvedValue(undefined);
@@ -33,7 +35,7 @@ describe("queue", () => {
       createQueue: createQueueMock,
       on: onMock,
       send: sendMock,
-      subscribe: subscribeMock,
+      work: workMock,
       schedule: scheduleMock,
       stop: stopMock,
     }));
@@ -92,6 +94,27 @@ describe("queue", () => {
         schedule: true,
         supervise: true,
       }),
+    );
+  });
+
+  it("forwards worker options when subscribing to queue jobs", async () => {
+    const { createQueueClient } = await import("@/server/queue");
+
+    const client = createQueueClient();
+    const handler = vi.fn().mockResolvedValue(undefined);
+
+    await client.subscribe("sync-store", handler, {
+      localConcurrency: 4,
+      pollingIntervalSeconds: 1,
+    });
+
+    expect(workMock).toHaveBeenCalledWith(
+      "sync-store",
+      {
+        localConcurrency: 4,
+        pollingIntervalSeconds: 1,
+      },
+      expect.any(Function),
     );
   });
 });

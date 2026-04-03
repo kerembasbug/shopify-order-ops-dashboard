@@ -45,6 +45,15 @@ describe("startWorker", () => {
     expect(syncConfiguredStores).toHaveBeenCalledTimes(1);
     expect(queue.start).toHaveBeenCalledTimes(1);
     expect(queue.subscribe).toHaveBeenCalledTimes(2);
+    expect(queue.subscribe).toHaveBeenNthCalledWith(
+      1,
+      workerModule.SYNC_STORE_JOB_NAME,
+      expect.any(Function),
+      {
+        localConcurrency: 4,
+        pollingIntervalSeconds: 1,
+      },
+    );
     expect(queue.schedule).toHaveBeenCalledWith(
       workerModule.SYNC_ALL_STORES_SCHEDULE_NAME,
       workerModule.SYNC_ALL_STORES_CRON,
