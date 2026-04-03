@@ -33,6 +33,7 @@ describe("OrdersTable", () => {
               storeName: "Book Nook Kit",
               shopifyOrderNumber: 4101,
               createdAt: "2026-04-01T09:30:00.000Z",
+              updatedAt: "2026-04-01T09:45:00.000Z",
               customerName: "Ada Lovelace",
               customerEmail: "ada@example.com",
               countryCode: "US",
@@ -93,14 +94,15 @@ describe("OrdersTable", () => {
               storeName: "Book Nook Kit",
               shopifyOrderNumber: 4102,
               createdAt: "2026-04-01T11:30:00.000Z",
-              customerName: null,
-              customerEmail: null,
-              countryCode: null,
+              updatedAt: "2026-04-01T11:45:00.000Z",
+              customerName: "Grace Hopper",
+              customerEmail: "grace@example.com",
+              countryCode: "US",
               currencyCode: "USD",
               totalPrice: "89.00",
               financialStatus: "PENDING",
-              fulfillmentStatus: null,
-              trackingSummary: null,
+              fulfillmentStatus: "FULFILLED",
+              trackingSummary: "Delivered",
               hasOpenIssue: false,
               hasNotes: false,
               lastSyncedAt: "2026-04-01T12:00:00.000Z",
@@ -122,6 +124,11 @@ describe("OrdersTable", () => {
     expect(row).toBeTruthy();
 
     const rowWithin = within(row as HTMLTableRowElement);
-    expect(rowWithin.getAllByText("—").length).toBeGreaterThanOrEqual(4);
+    const cells = rowWithin.getAllByRole("cell");
+
+    expect(cells[4]?.textContent?.trim()).toBe("—");
+    expect(cells[5]?.textContent?.trim()).toBe("—");
+    expect(cells[6]?.textContent?.trim()).toBe("—");
+    expect(cells[7]?.textContent?.trim()).toBe("—");
   });
 });
