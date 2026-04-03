@@ -6,7 +6,7 @@ import { OrderDetailSheet } from "@/components/dashboard/order-detail-sheet";
 import { OrdersTable } from "@/components/dashboard/orders-table";
 import { OverviewStrip, type OverviewCard } from "@/components/dashboard/overview-strip";
 import { SyncStatusCard } from "@/components/dashboard/sync-status-card";
-import { formatCurrencyScope, formatDate } from "@/components/dashboard/dashboard-utils";
+import { formatCurrencyScope, formatIsoDateLabel } from "@/components/dashboard/dashboard-utils";
 import { getSessionFromToken, SESSION_COOKIE_NAME } from "@/server/auth";
 import { getEnv } from "@/server/env";
 import { parseOrderFilters } from "@/server/orders/filters";
@@ -82,6 +82,7 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
       totalSalesAmount: "0",
       previousSalesAmount: "0",
       currencyCodes: [],
+      previousCurrencyCodes: [],
       deltaDirection: "flat" as const,
       deltaPercentageLabel: "0%",
       fulfilledOrders: 0,
@@ -112,7 +113,7 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
 }
 
 function describeComparisonRange(from: string, to: string) {
-  return `${formatDate(from)} to ${formatDate(to)}`;
+  return `${formatIsoDateLabel(from)} to ${formatIsoDateLabel(to)}`;
 }
 
 function buildSalesCard(
@@ -120,8 +121,9 @@ function buildSalesCard(
   currencyCodes: string[],
   rangeLabel: string,
   periodLabel: string,
+  emptyHint: string,
 ) {
-  return formatCurrencyScope(amount, currencyCodes, `${periodLabel}: ${rangeLabel}`);
+  return formatCurrencyScope(amount, currencyCodes, `${periodLabel}: ${rangeLabel}`, emptyHint);
 }
 
 export function buildOverviewCards(overview: OverviewData): OverviewCard[] {
@@ -142,6 +144,7 @@ export function buildOverviewCards(overview: OverviewData): OverviewCard[] {
         overview.currencyCodes,
         currentRangeLabel,
         "Current period",
+        "No orders in the current result set",
       ),
       tone: "accent" as const,
     },
@@ -149,9 +152,10 @@ export function buildOverviewCards(overview: OverviewData): OverviewCard[] {
       label: "Previous Sales",
       ...buildSalesCard(
         overview.previousSalesAmount,
-        overview.currencyCodes,
+        overview.previousCurrencyCodes,
         previousRangeLabel,
         "Previous period",
+        "No orders in the previous comparison period",
       ),
       tone: "default" as const,
     },

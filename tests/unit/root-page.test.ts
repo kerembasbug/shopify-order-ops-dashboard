@@ -62,10 +62,10 @@ describe("buildOverviewCards", () => {
     globalThis.React = React;
   });
 
-  it("builds comparison-aware cards with a multi-currency fallback", async () => {
+  it("builds comparison-aware cards with separate current, previous, and empty money states", async () => {
     const { buildOverviewCards } = await import("@/app/page");
 
-    const cards = buildOverviewCards({
+    const mixedCurrencyCards = buildOverviewCards({
       filters: {
         storeId: 42,
         dateFrom: "2026-01-01",
@@ -80,7 +80,8 @@ describe("buildOverviewCards", () => {
       totalOrders: 12,
       totalSalesAmount: "1250.5",
       previousSalesAmount: "900.25",
-      currencyCodes: ["USD", "EUR"],
+      currencyCodes: ["USD"],
+      previousCurrencyCodes: ["USD", "EUR"],
       deltaDirection: "up",
       deltaPercentageLabel: "+38.9%",
       fulfilledOrders: 8,
@@ -89,8 +90,44 @@ describe("buildOverviewCards", () => {
       ordersWithNotesCount: 1,
     });
 
-    expect(cards[0]?.label).toBe("Selected Sales");
-    expect(cards[0]?.value).toBe("Multi-currency");
-    expect(cards[2]?.trend?.direction).toBe("up");
+    const selectedSalesCard = mixedCurrencyCards.find((card) => card.label === "Selected Sales");
+    const previousSalesCard = mixedCurrencyCards.find((card) => card.label === "Previous Sales");
+    const growthCard = mixedCurrencyCards.find((card) => card.label === "Growth");
+
+    expect(selectedSalesCard?.value).toBe("$1,250.50");
+    expect(selectedSalesCard?.hint).toContain("Current period");
+    expect(previousSalesCard?.value).toBe("Multi-currency");
+    expect(previousSalesCard?.hint).toContain("Currency mix prevents a reliable total.");
+    expect(growthCard?.trend?.direction).toBe("up");
+
+    const emptyCards = buildOverviewCards({
+      filters: {
+        storeId: null,
+        dateFrom: null,
+        dateTo: null,
+      },
+      comparisonRange: {
+        currentFrom: "2026-01-01",
+        currentTo: "2026-01-31",
+        previousFrom: "2025-12-01",
+        previousTo: "2025-12-31",
+      },
+      totalOrders: 0,
+      totalSalesAmount: "0",
+      previousSalesAmount: "0",
+      currencyCodes: [],
+      previousCurrencyCodes: [],
+      deltaDirection: "flat",
+      deltaPercentageLabel: "0%",
+      fulfilledOrders: 0,
+      unfulfilledOrders: 0,
+      openIssuesCount: 0,
+      ordersWithNotesCount: 0,
+    });
+
+    const emptySelectedSalesCard = emptyCards.find((card) => card.label === "Selected Sales");
+
+    expect(emptySelectedSalesCard?.value).toBe("—");
+    expect(emptySelectedSalesCard?.hint).toBe("No orders in the current result set");
   });
 });

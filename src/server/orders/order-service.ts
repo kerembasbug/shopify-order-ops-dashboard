@@ -492,6 +492,7 @@ export async function getOverviewData(searchParams: URLSearchParams) {
     totalSalesAmount: currentSummary.totalSalesAmount,
     previousSalesAmount: previousSummary.totalSalesAmount,
     currencyCodes: currentSummary.currencyCodes,
+    previousCurrencyCodes: previousSummary.currencyCodes,
     deltaDirection: delta.direction,
     deltaPercentageLabel: delta.percentageLabel,
     fulfilledOrders: currentSummary.fulfilledOrders,
