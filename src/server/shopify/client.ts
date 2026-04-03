@@ -19,6 +19,14 @@ const ORDERS_QUERY = `
           updatedAt
           displayFinancialStatus
           displayFulfillmentStatus
+          sourceName
+          landingPageDisplayText
+          landingPageUrl
+          referrerUrl
+          customAttributes {
+            key
+            value
+          }
           totalPriceSet {
             shopMoney {
               amount

@@ -13,7 +13,7 @@ describe("fetchOrders", () => {
     vi.unstubAllGlobals();
   });
 
-  it("queries fulfillments without the legacy nodes wrapper", async () => {
+  it("queries attribution fields and preserves sourceName in the parsed result", async () => {
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -38,6 +38,7 @@ describe("fetchOrders", () => {
                     customer: null,
                     shippingAddress: null,
                     tags: [],
+                    sourceName: "web",
                     fulfillments: [
                       {
                         id: "gid://shopify/Fulfillment/1",
@@ -79,6 +80,14 @@ describe("fetchOrders", () => {
 
     expect(payload.query).toContain("fulfillments {");
     expect(payload.query).not.toContain("nodes {");
+    expect(payload.query).toContain("sourceName");
+    expect(payload.query).toContain("landingPageDisplayText");
+    expect(payload.query).toContain("landingPageUrl");
+    expect(payload.query).toContain("referrerUrl");
+    expect(payload.query).toMatch(/customAttributes\s*\{\s*key\s+value\s*\}/s);
+    expect(result.orders[0]).toMatchObject({
+      sourceName: "web",
+    });
     expect(result.orders[0]?.fulfillments).toHaveLength(1);
   });
 });

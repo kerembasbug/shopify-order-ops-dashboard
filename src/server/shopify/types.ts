@@ -16,6 +16,11 @@ export type ShopifyFulfillmentNode = {
   trackingInfo: ShopifyTrackingInfo[];
 };
 
+export type ShopifyCustomAttribute = {
+  key: string | null;
+  value: string | null;
+};
+
 export type ShopifyOrderNode = {
   id: string;
   name: string;
@@ -23,6 +28,11 @@ export type ShopifyOrderNode = {
   updatedAt: string;
   displayFinancialStatus: string | null;
   displayFulfillmentStatus: string | null;
+  sourceName: string | null;
+  landingPageDisplayText: string | null;
+  landingPageUrl: string | null;
+  referrerUrl: string | null;
+  customAttributes: ShopifyCustomAttribute[] | null;
   totalPriceSet: {
     shopMoney: ShopifyMoney;
   };
