@@ -105,6 +105,12 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
       financialStatus: string | null;
       fulfillmentStatus: string | null;
       trackingSummary: string | null;
+      salesChannel: string | null;
+      landingPagePath: string | null;
+      referrerHost: string | null;
+      utmSource: string | null;
+      utmMedium: string | null;
+      utmCampaign: string | null;
       hasOpenIssue: boolean;
       hasNotes: boolean;
       lastSyncedAt: Date | string | null;

@@ -139,6 +139,45 @@ export function formatDuration(startedAt: Date | string | null | undefined, fini
   return `${seconds}s`;
 }
 
+export function formatLandingPageLabel(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? "";
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.startsWith("/")) {
+    return trimmed;
+  }
+
+  try {
+    const url = trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? new URL(trimmed)
+      : new URL(trimmed, "https://orders.local");
+    const pathWithSearch = `${url.pathname}${url.search}`;
+
+    if (pathWithSearch && pathWithSearch !== "/") {
+      return pathWithSearch;
+    }
+
+    return url.hostname;
+  } catch {
+    return trimmed;
+  }
+}
+
+export function formatUtmSummary(
+  utmSource: string | null | undefined,
+  utmMedium: string | null | undefined,
+  utmCampaign: string | null | undefined,
+) {
+  const parts = [utmSource, utmMedium, utmCampaign]
+    .map((value) => value?.trim() ?? "")
+    .filter(Boolean);
+
+  return parts.join(" / ");
+}
+
 export function buildPathWithParams(
   pathname: string,
   currentQuery: string,
