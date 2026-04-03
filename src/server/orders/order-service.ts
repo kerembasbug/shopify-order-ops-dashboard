@@ -424,8 +424,14 @@ export async function getOverviewData(searchParams: URLSearchParams) {
   const filters = parseOrderFilters(searchParams);
   const comparisonRange = resolveComparisonRange(filters);
   const [currentSummary, previousSummary] = await Promise.all([
-    loadOverviewSummary(filters, comparisonRange.current),
-    loadOverviewSummary(filters, comparisonRange.previous),
+    loadOverviewSummary(filters, {
+      dateFrom: comparisonRange.currentFrom,
+      dateTo: comparisonRange.currentTo,
+    }),
+    loadOverviewSummary(filters, {
+      dateFrom: comparisonRange.previousFrom,
+      dateTo: comparisonRange.previousTo,
+    }),
   ]);
   const delta = getDeltaState(
     currentSummary.totalSalesAmount,
@@ -433,7 +439,11 @@ export async function getOverviewData(searchParams: URLSearchParams) {
   );
 
   return {
-    filters,
+    filters: {
+      ...filters,
+      dateFrom: comparisonRange.currentFrom,
+      dateTo: comparisonRange.currentTo,
+    },
     comparisonRange,
     totalOrders: currentSummary.totalOrders,
     totalSalesAmount: currentSummary.totalSalesAmount,

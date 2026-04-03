@@ -12,14 +12,10 @@ describe("resolveComparisonRange", () => {
         dateTo: "2026-03-07",
       }),
     ).toMatchObject({
-      current: {
-        dateFrom: "2026-03-01",
-        dateTo: "2026-03-07",
-      },
-      previous: {
-        dateFrom: "2026-02-22",
-        dateTo: "2026-02-28",
-      },
+      currentFrom: "2026-03-01",
+      currentTo: "2026-03-07",
+      previousFrom: "2026-02-22",
+      previousTo: "2026-02-28",
     });
   });
 });
@@ -29,6 +25,20 @@ describe("getDeltaState", () => {
     expect(getDeltaState("120.00", "0")).toEqual({
       direction: "up",
       percentageLabel: "New",
+    });
+  });
+
+  it('returns "—" when either amount is not finite', () => {
+    expect(getDeltaState("NaN", "10.00")).toEqual({
+      direction: "flat",
+      percentageLabel: "—",
+    });
+  });
+
+  it('returns a neutral readable label for near-flat deltas', () => {
+    expect(getDeltaState("100.04", "100.00")).toEqual({
+      direction: "flat",
+      percentageLabel: "0.0%",
     });
   });
 });

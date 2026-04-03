@@ -2,11 +2,6 @@ const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 export type ComparisonDirection = "up" | "down" | "flat";
 
-type ComparisonWindow = {
-  dateFrom: string;
-  dateTo: string;
-};
-
 function parseUtcDate(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
@@ -20,22 +15,19 @@ function addUtcDays(value: Date, days: number) {
 }
 
 function formatPercentageLabel(value: number) {
-  return `${value
-    .toFixed(1)
-    .replace(/\.0$/, "")
-    .replace(/(\.\d*[1-9])0+$/, "$1")}%`;
+  return `${value.toFixed(1)}%`;
 }
 
 function normalizeCurrentWindow(filters: {
   dateFrom: string | null;
   dateTo: string | null;
-}): ComparisonWindow {
+}) {
   if (filters.dateFrom || filters.dateTo) {
     const selectedDate = filters.dateFrom ?? filters.dateTo ?? formatUtcDate(new Date());
 
     return {
-      dateFrom: filters.dateFrom ?? selectedDate,
-      dateTo: filters.dateTo ?? selectedDate,
+      currentFrom: filters.dateFrom ?? selectedDate,
+      currentTo: filters.dateTo ?? selectedDate,
     };
   }
 
@@ -44,8 +36,8 @@ function normalizeCurrentWindow(filters: {
   const dateFrom = addUtcDays(dateTo, -29);
 
   return {
-    dateFrom: formatUtcDate(dateFrom),
-    dateTo: formatUtcDate(dateTo),
+    currentFrom: formatUtcDate(dateFrom),
+    currentTo: formatUtcDate(dateTo),
   };
 }
 
@@ -54,19 +46,18 @@ export function resolveComparisonRange(filters: {
   dateTo: string | null;
 }) {
   const current = normalizeCurrentWindow(filters);
-  const currentFrom = parseUtcDate(current.dateFrom);
-  const currentTo = parseUtcDate(current.dateTo);
+  const currentFrom = parseUtcDate(current.currentFrom);
+  const currentTo = parseUtcDate(current.currentTo);
   const rangeLengthInDays =
     Math.round((currentTo.getTime() - currentFrom.getTime()) / DAY_IN_MS) + 1;
   const previousTo = addUtcDays(currentFrom, -1);
   const previousFrom = addUtcDays(previousTo, -(rangeLengthInDays - 1));
 
   return {
-    current,
-    previous: {
-      dateFrom: formatUtcDate(previousFrom),
-      dateTo: formatUtcDate(previousTo),
-    },
+    currentFrom: current.currentFrom,
+    currentTo: current.currentTo,
+    previousFrom: formatUtcDate(previousFrom),
+    previousTo: formatUtcDate(previousTo),
   };
 }
 
@@ -77,7 +68,7 @@ export function getDeltaState(currentAmount: string, previousAmount: string) {
   if (!Number.isFinite(current) || !Number.isFinite(previous)) {
     return {
       direction: "flat" as const,
-      percentageLabel: "0%",
+      percentageLabel: "—",
     };
   }
 
@@ -100,12 +91,21 @@ export function getDeltaState(currentAmount: string, previousAmount: string) {
   if (delta === 0) {
     return {
       direction: "flat" as const,
-      percentageLabel: "0%",
+      percentageLabel: "0.0%",
+    };
+  }
+
+  const percentage = (delta / previous) * 100;
+
+  if (Math.abs(percentage) < 0.1) {
+    return {
+      direction: "flat" as const,
+      percentageLabel: "0.0%",
     };
   }
 
   return {
     direction: delta > 0 ? ("up" as const) : ("down" as const),
-    percentageLabel: formatPercentageLabel(Math.abs((delta / previous) * 100)),
+    percentageLabel: formatPercentageLabel(Math.abs(percentage)),
   };
 }
