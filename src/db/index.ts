@@ -1,7 +1,6 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
-import { getEnv } from "../server/env";
 
 type Database = NodePgDatabase<typeof schema>;
 
@@ -13,19 +12,8 @@ const globalForDb = globalThis as typeof globalThis & {
   orderOpsDb?: Database;
 };
 
-function resolveDatabaseUrl() {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL;
-  }
-
-  const hasAppSecrets =
-    process.env.APP_PASSWORD &&
-    process.env.APP_SESSION_SECRET &&
-    process.env.INTERNAL_CRON_SECRET &&
-    process.env.OPENCLAW_API_KEY &&
-    process.env.SHOPIFY_STORES_JSON;
-
-  return hasAppSecrets ? getEnv().databaseUrl : fallbackDatabaseUrl;
+export function resolveDatabaseUrl(input: Record<string, string | undefined> = process.env) {
+  return input.DATABASE_URL ?? fallbackDatabaseUrl;
 }
 
 function createPool() {
