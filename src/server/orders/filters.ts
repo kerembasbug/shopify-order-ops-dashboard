@@ -7,6 +7,7 @@ export type OrderFilters = {
   hasIssues: boolean;
   hasNotes: boolean;
   search: string;
+  sourceSearch: string;
   dateFrom: string | null;
   dateTo: string | null;
 };
@@ -52,6 +53,7 @@ export function parseOrderFilters(searchParams: URLSearchParams): OrderFilters {
     hasIssues: searchParams.get("issues") === "true",
     hasNotes: searchParams.get("notes") === "true",
     search: (searchParams.get("search") ?? "").trim(),
+    sourceSearch: (searchParams.get("source") ?? "").trim(),
     dateFrom: parseDateValue(searchParams.get("from")),
     dateTo: parseDateValue(searchParams.get("to")),
   };
