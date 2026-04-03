@@ -48,6 +48,41 @@ type OverviewSummary = {
   currencyCodes: string[];
 };
 
+function buildNormalizedDateSearchParams(searchParams: URLSearchParams) {
+  const filters = parseOrderFilters(searchParams);
+
+  if (filters.dateFrom && filters.dateTo) {
+    return searchParams;
+  }
+
+  const comparisonRange = resolveComparisonRange(filters);
+  const normalized = new URLSearchParams(searchParams);
+
+  normalized.set("from", comparisonRange.currentFrom);
+  normalized.set("to", comparisonRange.currentTo);
+
+  return normalized;
+}
+
+function isCurrencySafeDelta(
+  currentCurrencyCodes: string[],
+  previousCurrencyCodes: string[],
+) {
+  if (currentCurrencyCodes.length > 1 || previousCurrencyCodes.length > 1) {
+    return false;
+  }
+
+  if (
+    currentCurrencyCodes.length === 1 &&
+    previousCurrencyCodes.length === 1 &&
+    currentCurrencyCodes[0] !== previousCurrencyCodes[0]
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function getOpenIssueExistsSql() {
   return sql<boolean>`exists (
     select 1
@@ -433,10 +468,18 @@ export async function getOverviewData(searchParams: URLSearchParams) {
       dateTo: comparisonRange.previousTo,
     }),
   ]);
-  const delta = getDeltaState(
-    currentSummary.totalSalesAmount,
-    previousSummary.totalSalesAmount,
-  );
+  const delta = isCurrencySafeDelta(
+    currentSummary.currencyCodes,
+    previousSummary.currencyCodes,
+  )
+    ? getDeltaState(
+        currentSummary.totalSalesAmount,
+        previousSummary.totalSalesAmount,
+      )
+    : {
+        direction: "flat" as const,
+        percentageLabel: "Multi-currency",
+      };
 
   return {
     filters: {
@@ -459,9 +502,10 @@ export async function getOverviewData(searchParams: URLSearchParams) {
 }
 
 export async function getDashboardPageData(searchParams: URLSearchParams) {
+  const normalizedSearchParams = buildNormalizedDateSearchParams(searchParams);
   const [overview, orderRows, storeRows] = await Promise.all([
-    getOverviewData(searchParams),
-    listOrders(searchParams),
+    getOverviewData(normalizedSearchParams),
+    listOrders(normalizedSearchParams),
     db
       .select({
         id: stores.id,
