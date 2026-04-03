@@ -3,6 +3,7 @@
 import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { OrdersTable, type OrdersTableRow } from "@/components/dashboard/orders-table";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -20,40 +21,39 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-describe("OrdersTable", () => {
-  it("renders attribution columns with populated values", async () => {
-    const { OrdersTable } = await import("@/components/dashboard/orders-table");
+function buildRow(overrides: Partial<OrdersTableRow> = {}): OrdersTableRow {
+  return {
+    id: 101,
+    storeName: "Book Nook Kit",
+    shopifyOrderNumber: 4101,
+    createdAt: "2026-04-01T09:30:00.000Z",
+    updatedAt: "2026-04-01T09:45:00.000Z",
+    customerName: "Ada Lovelace",
+    customerEmail: "ada@example.com",
+    countryCode: "US",
+    currencyCode: "USD",
+    totalPrice: "149.00",
+    financialStatus: "PAID",
+    fulfillmentStatus: "UNFULFILLED",
+    trackingSummary: "Label created",
+    hasOpenIssue: false,
+    hasNotes: true,
+    lastSyncedAt: "2026-04-01T10:00:00.000Z",
+    salesChannel: "Online Store",
+    landingPagePath: "/products/book-nook-kit",
+    referrerHost: "l.facebook.com",
+    utmSource: "meta",
+    utmMedium: "paid-social",
+    utmCampaign: "spring-drop",
+    ...overrides,
+  };
+}
 
+describe("OrdersTable", () => {
+  it("renders attribution columns with populated values", () => {
     render(
       <OrdersTable
-        rows={
-          [
-            {
-              id: 101,
-              storeName: "Book Nook Kit",
-              shopifyOrderNumber: 4101,
-              createdAt: "2026-04-01T09:30:00.000Z",
-              updatedAt: "2026-04-01T09:45:00.000Z",
-              customerName: "Ada Lovelace",
-              customerEmail: "ada@example.com",
-              countryCode: "US",
-              currencyCode: "USD",
-              totalPrice: "149.00",
-              financialStatus: "PAID",
-              fulfillmentStatus: "UNFULFILLED",
-              trackingSummary: "Label created",
-              hasOpenIssue: false,
-              hasNotes: true,
-              lastSyncedAt: "2026-04-01T10:00:00.000Z",
-              salesChannel: "Online Store",
-              landingPagePath: "/products/book-nook-kit",
-              referrerHost: "l.facebook.com",
-              utmSource: "meta",
-              utmMedium: "paid-social",
-              utmCampaign: "spring-drop",
-            },
-          ] as unknown as Parameters<typeof OrdersTable>[0]["rows"]
-        }
+        rows={[buildRow()]}
         currentQuery=""
         selectedOrderId={null}
       />,
@@ -82,39 +82,30 @@ describe("OrdersTable", () => {
     ).toBeTruthy();
   });
 
-  it("renders an em dash when attribution data is missing", async () => {
-    const { OrdersTable } = await import("@/components/dashboard/orders-table");
-
+  it("renders an em dash when attribution data is missing", () => {
     render(
       <OrdersTable
-        rows={
-          [
-            {
-              id: 102,
-              storeName: "Book Nook Kit",
-              shopifyOrderNumber: 4102,
-              createdAt: "2026-04-01T11:30:00.000Z",
-              updatedAt: "2026-04-01T11:45:00.000Z",
-              customerName: "Grace Hopper",
-              customerEmail: "grace@example.com",
-              countryCode: "US",
-              currencyCode: "USD",
-              totalPrice: "89.00",
-              financialStatus: "PENDING",
-              fulfillmentStatus: "FULFILLED",
-              trackingSummary: "Delivered",
-              hasOpenIssue: false,
-              hasNotes: false,
-              lastSyncedAt: "2026-04-01T12:00:00.000Z",
-              salesChannel: null,
-              landingPagePath: null,
-              referrerHost: null,
-              utmSource: null,
-              utmMedium: null,
-              utmCampaign: null,
-            },
-          ] as unknown as Parameters<typeof OrdersTable>[0]["rows"]
-        }
+        rows={[
+          buildRow({
+            id: 102,
+            shopifyOrderNumber: 4102,
+            createdAt: "2026-04-01T11:30:00.000Z",
+            updatedAt: "2026-04-01T11:45:00.000Z",
+            customerName: "Grace Hopper",
+            customerEmail: "grace@example.com",
+            totalPrice: "89.00",
+            financialStatus: "PENDING",
+            fulfillmentStatus: "FULFILLED",
+            trackingSummary: "Delivered",
+            lastSyncedAt: "2026-04-01T12:00:00.000Z",
+            salesChannel: null,
+            landingPagePath: null,
+            referrerHost: null,
+            utmSource: null,
+            utmMedium: null,
+            utmCampaign: null,
+          }),
+        ]}
         currentQuery=""
         selectedOrderId={null}
       />,
@@ -124,11 +115,12 @@ describe("OrdersTable", () => {
     expect(row).toBeTruthy();
 
     const rowWithin = within(row as HTMLTableRowElement);
-    const cells = rowWithin.getAllByRole("cell");
+    const attributionCells = Array.from(
+      (row as HTMLTableRowElement).querySelectorAll(".orders-table__truncate"),
+      (cell) => cell.textContent?.trim(),
+    );
 
-    expect(cells[4]?.textContent?.trim()).toBe("—");
-    expect(cells[5]?.textContent?.trim()).toBe("—");
-    expect(cells[6]?.textContent?.trim()).toBe("—");
-    expect(cells[7]?.textContent?.trim()).toBe("—");
+    expect(rowWithin.getByText("Grace Hopper")).toBeTruthy();
+    expect(attributionCells).toEqual(["—", "—", "—", "—"]);
   });
 });

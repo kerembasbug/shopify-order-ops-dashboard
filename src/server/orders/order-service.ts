@@ -117,7 +117,7 @@ function buildSearchCondition(search: string) {
   )`;
 }
 
-function buildSourceSearchCondition(sourceSearch: string) {
+export function buildSourceSearchCondition(sourceSearch: string) {
   if (!sourceSearch) {
     return undefined;
   }

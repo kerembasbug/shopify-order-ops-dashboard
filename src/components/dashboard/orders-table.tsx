@@ -9,7 +9,7 @@ import {
   formatUtmSummary,
 } from "@/components/dashboard/dashboard-utils";
 
-type OrderRow = {
+export type OrdersTableRow = {
   id: number;
   storeName: string;
   shopifyOrderNumber: number;
@@ -35,7 +35,7 @@ type OrderRow = {
 };
 
 type OrdersTableProps = {
-  rows: OrderRow[];
+  rows: OrdersTableRow[];
   currentQuery: string;
   selectedOrderId: number | null;
 };

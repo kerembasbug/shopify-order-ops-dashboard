@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import React, { FormEvent, useEffect, useState, useTransition } from "react";
 import { buildPathWithParams } from "@/components/dashboard/dashboard-utils";
 import type { OrderFilters } from "@/server/orders/filters";
 
