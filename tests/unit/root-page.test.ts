@@ -63,7 +63,7 @@ describe("buildOverviewCards", () => {
   });
 
   it("builds comparison-aware cards with separate current, previous, and empty money states", async () => {
-    const { buildOverviewCards } = await import("@/app/page");
+    const { buildOverviewCards } = await import("@/components/dashboard/build-overview-cards");
 
     const mixedCurrencyCards = buildOverviewCards({
       filters: {

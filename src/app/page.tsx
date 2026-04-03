@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/dashboard/app-header";
+import { buildOverviewCards } from "@/components/dashboard/build-overview-cards";
 import { FilterBar } from "@/components/dashboard/filter-bar";
 import { OrderDetailSheet } from "@/components/dashboard/order-detail-sheet";
 import { OrdersTable } from "@/components/dashboard/orders-table";
-import { OverviewStrip, type OverviewCard } from "@/components/dashboard/overview-strip";
+import { OverviewStrip } from "@/components/dashboard/overview-strip";
 import { SyncStatusCard } from "@/components/dashboard/sync-status-card";
-import { formatCurrencyScope, formatIsoDateLabel } from "@/components/dashboard/dashboard-utils";
 import { getSessionFromToken, SESSION_COOKIE_NAME } from "@/server/auth";
 import { getEnv } from "@/server/env";
 import { parseOrderFilters } from "@/server/orders/filters";
@@ -23,8 +23,6 @@ type PageSearchParams = Record<string, string | string[] | undefined>;
 type HomePageProps = {
   searchParams?: PageSearchParams | Promise<PageSearchParams>;
 };
-
-type OverviewData = Awaited<ReturnType<typeof getDashboardPageData>>["overview"];
 
 function toURLSearchParams(searchParams: PageSearchParams) {
   const normalized = new URLSearchParams();
@@ -116,95 +114,6 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
       lastSyncedAt: Date | string | null;
     }>,
   };
-}
-
-function describeComparisonRange(from: string, to: string) {
-  return `${formatIsoDateLabel(from)} to ${formatIsoDateLabel(to)}`;
-}
-
-function buildSalesCard(
-  amount: string,
-  currencyCodes: string[],
-  rangeLabel: string,
-  periodLabel: string,
-  emptyHint: string,
-) {
-  return formatCurrencyScope(amount, currencyCodes, `${periodLabel}: ${rangeLabel}`, emptyHint);
-}
-
-export function buildOverviewCards(overview: OverviewData): OverviewCard[] {
-  const currentRangeLabel = describeComparisonRange(
-    overview.comparisonRange.currentFrom,
-    overview.comparisonRange.currentTo,
-  );
-  const previousRangeLabel = describeComparisonRange(
-    overview.comparisonRange.previousFrom,
-    overview.comparisonRange.previousTo,
-  );
-
-  return [
-    {
-      label: "Selected Sales",
-      ...buildSalesCard(
-        overview.totalSalesAmount,
-        overview.currencyCodes,
-        currentRangeLabel,
-        "Current period",
-        "No orders in the current result set",
-      ),
-      tone: "accent" as const,
-    },
-    {
-      label: "Previous Sales",
-      ...buildSalesCard(
-        overview.previousSalesAmount,
-        overview.previousCurrencyCodes,
-        previousRangeLabel,
-        "Previous period",
-        "No orders in the previous comparison period",
-      ),
-      tone: "default" as const,
-    },
-    {
-      label: "Growth",
-      value: overview.deltaPercentageLabel,
-      hint: `Compared with ${previousRangeLabel}`,
-      tone:
-        overview.deltaDirection === "up"
-          ? ("success" as const)
-          : overview.deltaDirection === "down"
-            ? ("danger" as const)
-            : ("default" as const),
-      trend: {
-        direction: overview.deltaDirection,
-        label: "Compared with previous period",
-      },
-    },
-    {
-      label: "Orders",
-      value: overview.totalOrders.toLocaleString("en-US"),
-      hint: `Orders in ${currentRangeLabel}`,
-      tone: "default" as const,
-    },
-    {
-      label: "Fulfilled",
-      value: overview.fulfilledOrders.toLocaleString("en-US"),
-      hint: `Fulfilled orders in ${currentRangeLabel}`,
-      tone: "success" as const,
-    },
-    {
-      label: "Unfulfilled",
-      value: overview.unfulfilledOrders.toLocaleString("en-US"),
-      hint: `Unfulfilled orders in ${currentRangeLabel}`,
-      tone: "default" as const,
-    },
-    {
-      label: "Open Issues",
-      value: overview.openIssuesCount.toLocaleString("en-US"),
-      hint: `Open issues in ${currentRangeLabel}`,
-      tone: overview.openIssuesCount > 0 ? "danger" : "default",
-    },
-  ];
 }
 
 function getActiveStoreLabel(
