@@ -26,6 +26,22 @@ describe("parseOrderFilters", () => {
     });
   });
 
+  it("parses a source query alongside date filters", () => {
+    const filters = parseOrderFilters(
+      new URLSearchParams({
+        source: "  meta / paid social  ",
+        from: "2026-03-01",
+        to: "2026-03-07",
+      }),
+    );
+
+    expect(filters).toMatchObject({
+      sourceSearch: "meta / paid social",
+      dateFrom: "2026-03-01",
+      dateTo: "2026-03-07",
+    });
+  });
+
   it("falls back to all when fulfillment is invalid", () => {
     const filters = parseOrderFilters(
       new URLSearchParams({
@@ -49,6 +65,20 @@ describe("parseOrderFilters", () => {
     expect(filters).toMatchObject({
       dateFrom: null,
       dateTo: null,
+    });
+  });
+
+  it("normalizes reversed explicit date ranges into ascending order", () => {
+    const filters = parseOrderFilters(
+      new URLSearchParams({
+        from: "2026-03-31",
+        to: "2026-03-01",
+      }),
+    );
+
+    expect(filters).toMatchObject({
+      dateFrom: "2026-03-01",
+      dateTo: "2026-03-31",
     });
   });
 });

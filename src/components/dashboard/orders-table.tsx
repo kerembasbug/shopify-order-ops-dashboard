@@ -1,16 +1,20 @@
+import React from "react";
 import Link from "next/link";
 import {
   buildPathWithParams,
   formatCurrency,
   formatDate,
+  formatLandingPageLabel,
   formatStatusLabel,
+  formatUtmSummary,
 } from "@/components/dashboard/dashboard-utils";
 
-type OrderRow = {
+export type OrdersTableRow = {
   id: number;
   storeName: string;
   shopifyOrderNumber: number;
   createdAt: Date | string;
+  updatedAt: Date | string;
   customerName: string | null;
   customerEmail: string | null;
   countryCode: string | null;
@@ -22,10 +26,16 @@ type OrderRow = {
   hasOpenIssue: boolean;
   hasNotes: boolean;
   lastSyncedAt: Date | string | null;
+  salesChannel: string | null;
+  landingPagePath: string | null;
+  referrerHost: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
 };
 
 type OrdersTableProps = {
-  rows: OrderRow[];
+  rows: OrdersTableRow[];
   currentQuery: string;
   selectedOrderId: number | null;
 };
@@ -48,6 +58,10 @@ function getFulfillmentTone(status: string | null) {
   return status?.toUpperCase() === "FULFILLED" ? "success" : "muted";
 }
 
+function getCellText(value: string | null | undefined) {
+  return value?.trim() ?? "";
+}
+
 export function OrdersTable({
   rows,
   currentQuery,
@@ -68,7 +82,12 @@ export function OrdersTable({
             <tr>
               <th>Store</th>
               <th>Order</th>
+              <th>Date</th>
               <th>Customer</th>
+              <th>Sales Channel</th>
+              <th>Landing Page</th>
+              <th>Referrer / Source</th>
+              <th>UTM</th>
               <th>Market</th>
               <th>Total</th>
               <th>Payment</th>
@@ -80,7 +99,7 @@ export function OrdersTable({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={14}>
                   <div className="orders-table__empty">
                     <h3>No orders match this filter set.</h3>
                     <p>Try broadening the date range, store scope, or issue filters.</p>
@@ -92,6 +111,14 @@ export function OrdersTable({
                 const href = buildPathWithParams("/", currentQuery, {
                   orderId: row.id,
                 });
+                const salesChannel = getCellText(row.salesChannel);
+                const landingPageLabel = formatLandingPageLabel(row.landingPagePath);
+                const referrerHost = getCellText(row.referrerHost);
+                const utmSummary = formatUtmSummary(
+                  row.utmSource,
+                  row.utmMedium,
+                  row.utmCampaign,
+                );
 
                 return (
                   <tr
@@ -108,12 +135,49 @@ export function OrdersTable({
                       <Link className="orders-table__link" href={href}>
                         #{row.shopifyOrderNumber}
                       </Link>
-                      <p className="orders-table__secondary">{formatDate(row.createdAt)}</p>
+                    </td>
+                    <td>
+                      <p className="orders-table__primary">{formatDate(row.createdAt)}</p>
+                      <p className="orders-table__secondary">
+                        Updated {formatDate(row.updatedAt)}
+                      </p>
                     </td>
                     <td>
                       <p className="orders-table__primary">{row.customerName ?? "Unknown"}</p>
                       <p className="orders-table__secondary">
                         {row.customerEmail ?? "No email"}
+                      </p>
+                    </td>
+                    <td>
+                      <p
+                        className="orders-table__primary orders-table__truncate"
+                        title={salesChannel || undefined}
+                      >
+                        {salesChannel || "—"}
+                      </p>
+                    </td>
+                    <td>
+                      <p
+                        className="orders-table__primary orders-table__truncate"
+                        title={landingPageLabel || undefined}
+                      >
+                        {landingPageLabel || "—"}
+                      </p>
+                    </td>
+                    <td>
+                      <p
+                        className="orders-table__primary orders-table__truncate"
+                        title={referrerHost || undefined}
+                      >
+                        {referrerHost || "—"}
+                      </p>
+                    </td>
+                    <td>
+                      <p
+                        className="orders-table__primary orders-table__truncate"
+                        title={utmSummary || undefined}
+                      >
+                        {utmSummary || "—"}
                       </p>
                     </td>
                     <td>{row.countryCode ?? "—"}</td>

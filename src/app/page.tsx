@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/dashboard/app-header";
+import { buildOverviewCards } from "@/components/dashboard/build-overview-cards";
 import { FilterBar } from "@/components/dashboard/filter-bar";
 import { OrderDetailSheet } from "@/components/dashboard/order-detail-sheet";
 import { OrdersTable } from "@/components/dashboard/orders-table";
-import { OverviewStrip, type OverviewCard } from "@/components/dashboard/overview-strip";
+import { OverviewStrip } from "@/components/dashboard/overview-strip";
 import { SyncStatusCard } from "@/components/dashboard/sync-status-card";
-import { formatCurrency } from "@/components/dashboard/dashboard-utils";
 import { getSessionFromToken, SESSION_COOKIE_NAME } from "@/server/auth";
 import { getEnv } from "@/server/env";
 import { parseOrderFilters } from "@/server/orders/filters";
@@ -70,8 +70,19 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
     }>,
     overview: {
       filters,
+      comparisonRange: {
+        currentFrom: filters.dateFrom ?? "",
+        currentTo: filters.dateTo ?? "",
+        previousFrom: filters.dateFrom ?? "",
+        previousTo: filters.dateTo ?? "",
+      },
       totalOrders: 0,
       totalSalesAmount: "0",
+      previousSalesAmount: "0",
+      currencyCodes: [],
+      previousCurrencyCodes: [],
+      deltaDirection: "flat" as const,
+      deltaPercentageLabel: "0%",
       fulfilledOrders: 0,
       unfulfilledOrders: 0,
       openIssuesCount: 0,
@@ -92,79 +103,17 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
       financialStatus: string | null;
       fulfillmentStatus: string | null;
       trackingSummary: string | null;
+      salesChannel: string | null;
+      landingPagePath: string | null;
+      referrerHost: string | null;
+      utmSource: string | null;
+      utmMedium: string | null;
+      utmCampaign: string | null;
       hasOpenIssue: boolean;
       hasNotes: boolean;
       lastSyncedAt: Date | string | null;
     }>,
   };
-}
-
-function buildOverviewCards(
-  orders: Array<{ currencyCode: string | null }>,
-  overview: Awaited<ReturnType<typeof getDashboardPageData>>["overview"],
-): OverviewCard[] {
-  const distinctCurrencies = Array.from(
-    new Set(
-      orders
-        .map((order) => order.currencyCode)
-        .filter((currency): currency is string => Boolean(currency)),
-    ),
-  );
-  const isCompleteOrderSet = overview.totalOrders === orders.length;
-  const salesCard =
-    overview.totalOrders === 0
-      ? {
-          value: "—",
-          hint: "No orders in the current result set",
-        }
-      : overview.filters.storeId && isCompleteOrderSet && distinctCurrencies.length === 1
-        ? {
-            value: formatCurrency(overview.totalSalesAmount, distinctCurrencies[0]),
-            hint: `Gross order value in ${distinctCurrencies[0]}`,
-          }
-        : {
-            value: "Mixed scope",
-            hint: "Select a single-store scope for a currency-safe total",
-          };
-
-  return [
-    {
-      label: "Total Orders",
-      value: overview.totalOrders.toLocaleString("en-US"),
-      hint: "Current result set",
-      tone: "default" as const,
-    },
-    {
-      label: "Total Sales",
-      value: salesCard.value,
-      hint: salesCard.hint,
-      tone: "accent" as const,
-    },
-    {
-      label: "Fulfilled",
-      value: overview.fulfilledOrders.toLocaleString("en-US"),
-      hint: "Closed shipment records",
-      tone: "success" as const,
-    },
-    {
-      label: "Unfulfilled",
-      value: overview.unfulfilledOrders.toLocaleString("en-US"),
-      hint: "Needs operational follow-through",
-      tone: "default" as const,
-    },
-    {
-      label: "Open Issues",
-      value: overview.openIssuesCount.toLocaleString("en-US"),
-      hint: "Agent or ops flags still open",
-      tone: overview.openIssuesCount > 0 ? "danger" : "default",
-    },
-    {
-      label: "Orders With Notes",
-      value: overview.ordersWithNotesCount.toLocaleString("en-US"),
-      hint: "Manual annotations present",
-      tone: "accent" as const,
-    },
-  ];
 }
 
 function getActiveStoreLabel(
@@ -252,7 +201,7 @@ export default async function HomePage(props: HomePageProps) {
         </section>
       ))}
 
-      <OverviewStrip cards={buildOverviewCards(dashboardData.orders, dashboardData.overview)} />
+      <OverviewStrip cards={buildOverviewCards(dashboardData.overview)} />
 
       <div className="dashboard-grid">
         <section className="dashboard-main">

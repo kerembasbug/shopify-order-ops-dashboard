@@ -11,6 +11,10 @@ import {
 import { getEnv } from "@/server/env";
 import { listIssuesForOrder } from "@/server/issues/issue-service";
 import { listNotesForOrder } from "@/server/notes/note-service";
+import {
+  getDeltaState,
+  resolveComparisonRange,
+} from "@/server/orders/comparison";
 import { parseOrderFilters } from "@/server/orders/filters";
 import type { MappedShopifyOrder } from "@/server/shopify/map-order";
 
@@ -28,6 +32,56 @@ export type SyncQueuePayload = {
   adminToken: string;
   updatedAfter?: string;
 };
+
+type DateRangeInput = {
+  dateFrom: string | null;
+  dateTo: string | null;
+};
+
+type OverviewSummary = {
+  totalOrders: number;
+  totalSalesAmount: string;
+  fulfilledOrders: number;
+  unfulfilledOrders: number;
+  openIssuesCount: number;
+  ordersWithNotesCount: number;
+  currencyCodes: string[];
+};
+
+function buildNormalizedDateSearchParams(searchParams: URLSearchParams) {
+  const filters = parseOrderFilters(searchParams);
+
+  if (filters.dateFrom && filters.dateTo) {
+    return searchParams;
+  }
+
+  const comparisonRange = resolveComparisonRange(filters);
+  const normalized = new URLSearchParams(searchParams);
+
+  normalized.set("from", comparisonRange.currentFrom);
+  normalized.set("to", comparisonRange.currentTo);
+
+  return normalized;
+}
+
+function isCurrencySafeDelta(
+  currentCurrencyCodes: string[],
+  previousCurrencyCodes: string[],
+) {
+  if (currentCurrencyCodes.length > 1 || previousCurrencyCodes.length > 1) {
+    return false;
+  }
+
+  if (
+    currentCurrencyCodes.length === 1 &&
+    previousCurrencyCodes.length === 1 &&
+    currentCurrencyCodes[0] !== previousCurrencyCodes[0]
+  ) {
+    return false;
+  }
+
+  return true;
+}
 
 function getOpenIssueExistsSql() {
   return sql<boolean>`exists (
@@ -63,6 +117,33 @@ function buildSearchCondition(search: string) {
   )`;
 }
 
+export function buildSourceSearchCondition(sourceSearch: string) {
+  const normalizedSourceSearch = sourceSearch.trim();
+
+  if (!normalizedSourceSearch) {
+    return undefined;
+  }
+
+  if (normalizedSourceSearch.toLowerCase() === "direct") {
+    return sql<boolean>`(
+      coalesce(${orders.referrerHost}, '') = ''
+      and coalesce(${orders.utmSource}, '') = ''
+      and coalesce(${orders.utmMedium}, '') = ''
+      and coalesce(${orders.utmCampaign}, '') = ''
+    )`;
+  }
+
+  const pattern = `%${normalizedSourceSearch}%`;
+
+  return sql<boolean>`(
+    coalesce(${orders.salesChannel}, '') ilike ${pattern}
+    or coalesce(${orders.referrerHost}, '') ilike ${pattern}
+    or coalesce(${orders.utmSource}, '') ilike ${pattern}
+    or coalesce(${orders.utmMedium}, '') ilike ${pattern}
+    or coalesce(${orders.utmCampaign}, '') ilike ${pattern}
+  )`;
+}
+
 function buildDateFrom(dateFrom: string | null) {
   if (!dateFrom) {
     return null;
@@ -83,11 +164,14 @@ function buildDateTo(dateTo: string | null) {
   return Number.isNaN(value.getTime()) ? null : value;
 }
 
-function buildOrderWhereClause(filters: ReturnType<typeof parseOrderFilters>) {
+function buildOrderWhereClause(
+  filters: ReturnType<typeof parseOrderFilters>,
+  dateRange: DateRangeInput = filters,
+) {
   const openIssueExists = getOpenIssueExistsSql();
   const hasNotesExists = getHasNotesExistsSql();
-  const createdAfter = buildDateFrom(filters.dateFrom);
-  const createdBefore = buildDateTo(filters.dateTo);
+  const createdAfter = buildDateFrom(dateRange.dateFrom);
+  const createdBefore = buildDateTo(dateRange.dateTo);
 
   return and(
     filters.storeId ? eq(orders.storeId, filters.storeId) : undefined,
@@ -100,9 +184,55 @@ function buildOrderWhereClause(filters: ReturnType<typeof parseOrderFilters>) {
     filters.hasIssues ? openIssueExists : undefined,
     filters.hasNotes ? hasNotesExists : undefined,
     buildSearchCondition(filters.search),
+    buildSourceSearchCondition(filters.sourceSearch),
     createdAfter ? gte(orders.createdAt, createdAfter) : undefined,
     createdBefore ? lte(orders.createdAt, createdBefore) : undefined,
   );
+}
+
+async function loadOverviewSummary(
+  filters: ReturnType<typeof parseOrderFilters>,
+  dateRange: DateRangeInput,
+): Promise<OverviewSummary> {
+  const hasOpenIssue = getOpenIssueExistsSql();
+  const hasNotes = getHasNotesExistsSql();
+  const whereClause = buildOrderWhereClause(filters, dateRange);
+
+  const query = db
+    .select({
+      totalOrders: sql<number>`count(*)::int`,
+      totalSalesAmount: sql<string>`coalesce(sum(${orders.totalPrice}), 0)::text`,
+      fulfilledOrders: sql<number>`count(*) filter (where ${orders.fulfillmentStatus} = 'FULFILLED')::int`,
+      unfulfilledOrders: sql<number>`count(*) filter (
+        where coalesce(${orders.fulfillmentStatus}, '') <> 'FULFILLED'
+      )::int`,
+      openIssuesCount: sql<number>`count(
+        distinct case when ${hasOpenIssue} then ${orders.id} else null end
+      )::int`,
+      ordersWithNotesCount: sql<number>`count(
+        distinct case when ${hasNotes} then ${orders.id} else null end
+      )::int`,
+      currencyCodes: sql<string[]>`coalesce(
+        array_agg(distinct ${orders.currencyCode}) filter (
+          where ${orders.currencyCode} is not null
+        ),
+        '{}'::text[]
+      )`,
+    })
+    .from(orders)
+    .innerJoin(stores, eq(stores.id, orders.storeId));
+
+  const [summary] = await (whereClause ? query.where(whereClause) : query);
+
+  return {
+    totalOrders: summary?.totalOrders ?? 0,
+    totalSalesAmount: summary?.totalSalesAmount ?? "0",
+    fulfilledOrders: summary?.fulfilledOrders ?? 0,
+    unfulfilledOrders: summary?.unfulfilledOrders ?? 0,
+    openIssuesCount: summary?.openIssuesCount ?? 0,
+    ordersWithNotesCount: summary?.ordersWithNotesCount ?? 0,
+    currencyCodes: summary?.currencyCodes ?? [],
+  };
 }
 
 function getConfiguredStoreTokenMap() {
@@ -204,6 +334,13 @@ export function createSyncRepo() {
             financialStatus: mapped.order.financialStatus,
             fulfillmentStatus: mapped.order.fulfillmentStatus,
             trackingSummary: mapped.order.trackingSummary,
+            salesChannel: mapped.order.salesChannel,
+            landingPagePath: mapped.order.landingPagePath,
+            referrerUrl: mapped.order.referrerUrl,
+            referrerHost: mapped.order.referrerHost,
+            utmSource: mapped.order.utmSource,
+            utmMedium: mapped.order.utmMedium,
+            utmCampaign: mapped.order.utmCampaign,
             tagsJson: mapped.order.tagsJson,
             lastSyncedAt: syncTimestamp,
           })
@@ -221,6 +358,13 @@ export function createSyncRepo() {
               financialStatus: mapped.order.financialStatus,
               fulfillmentStatus: mapped.order.fulfillmentStatus,
               trackingSummary: mapped.order.trackingSummary,
+              salesChannel: mapped.order.salesChannel,
+              landingPagePath: mapped.order.landingPagePath,
+              referrerUrl: mapped.order.referrerUrl,
+              referrerHost: mapped.order.referrerHost,
+              utmSource: mapped.order.utmSource,
+              utmMedium: mapped.order.utmMedium,
+              utmCampaign: mapped.order.utmCampaign,
               tagsJson: mapped.order.tagsJson,
               lastSyncedAt: syncTimestamp,
             },
@@ -310,6 +454,12 @@ export async function listOrders(searchParams: URLSearchParams) {
       financialStatus: orders.financialStatus,
       fulfillmentStatus: orders.fulfillmentStatus,
       trackingSummary: orders.trackingSummary,
+      salesChannel: orders.salesChannel,
+      landingPagePath: orders.landingPagePath,
+      referrerHost: orders.referrerHost,
+      utmSource: orders.utmSource,
+      utmMedium: orders.utmMedium,
+      utmCampaign: orders.utmCampaign,
       hasOpenIssue,
       hasNotes,
       lastSyncedAt: orders.lastSyncedAt,
@@ -324,45 +474,56 @@ export async function listOrders(searchParams: URLSearchParams) {
 
 export async function getOverviewData(searchParams: URLSearchParams) {
   const filters = parseOrderFilters(searchParams);
-  const hasOpenIssue = getOpenIssueExistsSql();
-  const hasNotes = getHasNotesExistsSql();
-  const whereClause = buildOrderWhereClause(filters);
-
-  const query = db
-    .select({
-      totalOrders: sql<number>`count(*)::int`,
-      totalSalesAmount: sql<string>`coalesce(sum(${orders.totalPrice}), 0)::text`,
-      fulfilledOrders: sql<number>`count(*) filter (where ${orders.fulfillmentStatus} = 'FULFILLED')::int`,
-      unfulfilledOrders: sql<number>`count(*) filter (
-        where coalesce(${orders.fulfillmentStatus}, '') <> 'FULFILLED'
-      )::int`,
-      openIssuesCount: sql<number>`count(
-        distinct case when ${hasOpenIssue} then ${orders.id} else null end
-      )::int`,
-      ordersWithNotesCount: sql<number>`count(
-        distinct case when ${hasNotes} then ${orders.id} else null end
-      )::int`,
-    })
-    .from(orders)
-    .innerJoin(stores, eq(stores.id, orders.storeId));
-
-  const [summary] = await (whereClause ? query.where(whereClause) : query);
+  const comparisonRange = resolveComparisonRange(filters);
+  const [currentSummary, previousSummary] = await Promise.all([
+    loadOverviewSummary(filters, {
+      dateFrom: comparisonRange.currentFrom,
+      dateTo: comparisonRange.currentTo,
+    }),
+    loadOverviewSummary(filters, {
+      dateFrom: comparisonRange.previousFrom,
+      dateTo: comparisonRange.previousTo,
+    }),
+  ]);
+  const delta = isCurrencySafeDelta(
+    currentSummary.currencyCodes,
+    previousSummary.currencyCodes,
+  )
+    ? getDeltaState(
+        currentSummary.totalSalesAmount,
+        previousSummary.totalSalesAmount,
+      )
+    : {
+        direction: "flat" as const,
+        percentageLabel: "Multi-currency",
+      };
 
   return {
-    filters,
-    totalOrders: summary?.totalOrders ?? 0,
-    totalSalesAmount: summary?.totalSalesAmount ?? "0",
-    fulfilledOrders: summary?.fulfilledOrders ?? 0,
-    unfulfilledOrders: summary?.unfulfilledOrders ?? 0,
-    openIssuesCount: summary?.openIssuesCount ?? 0,
-    ordersWithNotesCount: summary?.ordersWithNotesCount ?? 0,
+    filters: {
+      ...filters,
+      dateFrom: comparisonRange.currentFrom,
+      dateTo: comparisonRange.currentTo,
+    },
+    comparisonRange,
+    totalOrders: currentSummary.totalOrders,
+    totalSalesAmount: currentSummary.totalSalesAmount,
+    previousSalesAmount: previousSummary.totalSalesAmount,
+    currencyCodes: currentSummary.currencyCodes,
+    previousCurrencyCodes: previousSummary.currencyCodes,
+    deltaDirection: delta.direction,
+    deltaPercentageLabel: delta.percentageLabel,
+    fulfilledOrders: currentSummary.fulfilledOrders,
+    unfulfilledOrders: currentSummary.unfulfilledOrders,
+    openIssuesCount: currentSummary.openIssuesCount,
+    ordersWithNotesCount: currentSummary.ordersWithNotesCount,
   };
 }
 
 export async function getDashboardPageData(searchParams: URLSearchParams) {
+  const normalizedSearchParams = buildNormalizedDateSearchParams(searchParams);
   const [overview, orderRows, storeRows] = await Promise.all([
-    getOverviewData(searchParams),
-    listOrders(searchParams),
+    getOverviewData(normalizedSearchParams),
+    listOrders(normalizedSearchParams),
     db
       .select({
         id: stores.id,

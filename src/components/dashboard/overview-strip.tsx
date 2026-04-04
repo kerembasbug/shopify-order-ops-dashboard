@@ -3,6 +3,10 @@ export type OverviewCard = {
   value: string;
   hint: string;
   tone?: "default" | "success" | "danger" | "accent";
+  trend?: {
+    direction: "up" | "down" | "flat";
+    label: string;
+  };
 };
 
 const toneClassNames: Record<NonNullable<OverviewCard["tone"]>, string> = {
@@ -22,6 +26,11 @@ export function OverviewStrip({ cards }: { cards: OverviewCard[] }) {
         >
           <p className="overview-card__label">{card.label}</p>
           <p className="overview-card__value">{card.value}</p>
+          {card.trend ? (
+            <p className={`overview-card__trend overview-card__trend--${card.trend.direction}`}>
+              {card.trend.label}
+            </p>
+          ) : null}
           <p className="overview-card__hint">{card.hint}</p>
         </article>
       ))}

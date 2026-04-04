@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import React, { FormEvent, useEffect, useState, useTransition } from "react";
 import { buildPathWithParams } from "@/components/dashboard/dashboard-utils";
 import type { OrderFilters } from "@/server/orders/filters";
 
@@ -24,6 +24,7 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
   const [storeId, setStoreId] = useState(filters.storeId ? String(filters.storeId) : "");
   const [fulfillment, setFulfillment] = useState(filters.fulfillment);
   const [search, setSearch] = useState(filters.search);
+  const [sourceSearch, setSourceSearch] = useState(filters.sourceSearch);
   const [dateFrom, setDateFrom] = useState(filters.dateFrom ?? "");
   const [dateTo, setDateTo] = useState(filters.dateTo ?? "");
   const [hasIssues, setHasIssues] = useState(filters.hasIssues);
@@ -36,6 +37,7 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     setStoreId(filters.storeId ? String(filters.storeId) : "");
     setFulfillment(filters.fulfillment);
     setSearch(filters.search);
+    setSourceSearch(filters.sourceSearch);
     setDateFrom(filters.dateFrom ?? "");
     setDateTo(filters.dateTo ?? "");
     setHasIssues(filters.hasIssues);
@@ -47,6 +49,7 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     filters.hasIssues,
     filters.hasNotes,
     filters.search,
+    filters.sourceSearch,
     filters.storeId,
   ]);
 
@@ -57,6 +60,7 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
       store: storeId || null,
       fulfillment: fulfillment === "all" ? null : fulfillment,
       search: search || null,
+      source: sourceSearch || null,
       from: dateFrom || null,
       to: dateTo || null,
       issues: hasIssues ? "true" : null,
@@ -73,6 +77,7 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     setStoreId("");
     setFulfillment("all");
     setSearch("");
+    setSourceSearch("");
     setDateFrom("");
     setDateTo("");
     setHasIssues(false);
@@ -156,6 +161,16 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Order, customer, email"
+          />
+        </label>
+
+        <label className="field field--source">
+          <span>Source</span>
+          <input
+            aria-label="Search order sources"
+            value={sourceSearch}
+            onChange={(event) => setSourceSearch(event.target.value)}
+            placeholder="Meta, Google, Klaviyo, direct"
           />
         </label>
 

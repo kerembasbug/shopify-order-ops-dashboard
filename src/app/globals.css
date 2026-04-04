@@ -207,7 +207,7 @@ button {
 
 .overview-strip {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 14px;
   margin-top: 18px;
 }
@@ -299,7 +299,7 @@ button {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -319,6 +319,10 @@ button {
 }
 
 .field--search {
+  grid-column: span 2;
+}
+
+.field--source {
   grid-column: span 2;
 }
 
@@ -396,7 +400,7 @@ button {
 .orders-table-wrap {
   position: relative;
   z-index: 1;
-  overflow: hidden;
+  overflow: auto;
   border: 1px solid var(--border-soft);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.78);
@@ -404,6 +408,7 @@ button {
 
 .orders-table {
   width: 100%;
+  min-width: 1760px;
   border-collapse: collapse;
 }
 
@@ -416,6 +421,9 @@ button {
 }
 
 .orders-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: rgba(38, 54, 60, 0.05);
   color: var(--bg-muted);
   font-size: 12px;
@@ -446,6 +454,13 @@ button {
   margin-top: 4px;
   color: var(--bg-muted);
   font-size: 13px;
+}
+
+.orders-table__truncate {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .orders-table__link {
@@ -706,8 +721,8 @@ button {
     grid-column: span 1;
   }
 
-  .orders-table-wrap {
-    overflow-x: auto;
+  .field--source {
+    grid-column: span 1;
   }
 }
 

@@ -14,6 +14,13 @@ export type MappedOrderRecord = {
   fulfillmentStatus: string;
   trackingSummary: string | null;
   tagsJson: string[];
+  salesChannel: string | null;
+  landingPagePath: string | null;
+  referrerUrl: string | null;
+  referrerHost: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
 };
 
 export type MappedFulfillmentRecord = {
@@ -40,6 +47,73 @@ export function normalizeShopifyOrderNumber(orderName: string) {
   return Number.parseInt(firstDigits, 10);
 }
 
+function normalizeSalesChannel(sourceName: string | null) {
+  const trimmedSourceName = sourceName?.trim();
+
+  if (!trimmedSourceName) {
+    return null;
+  }
+
+  if (trimmedSourceName === "web") {
+    return "Online Store";
+  }
+
+  return trimmedSourceName
+    .replace(/[_-]+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function normalizeLandingPagePath(
+  landingPageDisplayText: string | null,
+  landingPageUrl: string | null,
+) {
+  const candidates = [landingPageDisplayText, landingPageUrl];
+
+  for (const candidate of candidates) {
+    const trimmed = candidate?.trim();
+
+    if (!trimmed || !trimmed.includes("/") || /\s/.test(trimmed)) {
+      continue;
+    }
+
+    try {
+      const parsed = new URL(trimmed, "https://example.com");
+
+      return parsed.pathname || null;
+    } catch {
+      // Best effort only.
+    }
+  }
+
+  return null;
+}
+
+function normalizeReferrerHost(referrerUrl: string | null) {
+  if (!referrerUrl) {
+    return null;
+  }
+
+  try {
+    return new URL(referrerUrl).host || null;
+  } catch {
+    return null;
+  }
+}
+
+function getCustomAttributeValue(
+  customAttributes: ShopifyOrderNode["customAttributes"],
+  name: string,
+) {
+  const normalizedName = name.toLowerCase();
+
+  return (
+    customAttributes?.find(
+      (attribute) => attribute.key?.toLowerCase() === normalizedName,
+    )?.value?.trim() ?? null
+  );
+}
+
 export function mapShopifyOrder(order: ShopifyOrderNode): MappedShopifyOrder {
   const customerName = [order.customer?.firstName, order.customer?.lastName]
     .filter((value): value is string => Boolean(value?.trim()))
@@ -60,6 +134,12 @@ export function mapShopifyOrder(order: ShopifyOrderNode): MappedShopifyOrder {
     .map((trackingInfo) => trackingInfo.number?.trim() ?? "")
     .filter((trackingNumber) => trackingNumber.length > 0);
 
+  const referrerUrl = order.referrerUrl?.trim() ?? null;
+  const landingPagePath = normalizeLandingPagePath(
+    order.landingPageDisplayText,
+    order.landingPageUrl,
+  );
+
   return {
     order: {
       shopifyOrderId: order.id,
@@ -76,6 +156,13 @@ export function mapShopifyOrder(order: ShopifyOrderNode): MappedShopifyOrder {
       trackingSummary:
         trackingNumbers.length > 0 ? trackingNumbers.join(", ") : null,
       tagsJson: order.tags,
+      salesChannel: normalizeSalesChannel(order.sourceName),
+      landingPagePath,
+      referrerUrl,
+      referrerHost: normalizeReferrerHost(referrerUrl),
+      utmSource: getCustomAttributeValue(order.customAttributes, "utm_source"),
+      utmMedium: getCustomAttributeValue(order.customAttributes, "utm_medium"),
+      utmCampaign: getCustomAttributeValue(order.customAttributes, "utm_campaign"),
     },
     fulfillments,
   };
