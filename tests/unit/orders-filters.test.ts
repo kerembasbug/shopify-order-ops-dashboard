@@ -67,4 +67,18 @@ describe("parseOrderFilters", () => {
       dateTo: null,
     });
   });
+
+  it("normalizes reversed explicit date ranges into ascending order", () => {
+    const filters = parseOrderFilters(
+      new URLSearchParams({
+        from: "2026-03-31",
+        to: "2026-03-01",
+      }),
+    );
+
+    expect(filters).toMatchObject({
+      dateFrom: "2026-03-01",
+      dateTo: "2026-03-31",
+    });
+  });
 });

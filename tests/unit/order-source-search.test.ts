@@ -50,4 +50,19 @@ describe("buildSourceSearchCondition", () => {
     expect(serialized).toMatch(/utm(?:_|)medium/i);
     expect(serialized).toMatch(/utm(?:_|)campaign/i);
   });
+
+  it("treats direct source queries as blank attribution traffic", async () => {
+    const { buildSourceSearchCondition } = await import("@/server/orders/order-service");
+
+    const predicate = buildSourceSearchCondition("  direct  ");
+    const serialized = collectStrings(predicate).join(" ");
+
+    expect(predicate).toBeDefined();
+    expect(serialized).not.toContain("%  direct  %");
+    expect(serialized).not.toContain("%direct%");
+    expect(serialized).toMatch(/referrer(?:_|)host/i);
+    expect(serialized).toMatch(/utm(?:_|)source/i);
+    expect(serialized).toMatch(/utm(?:_|)medium/i);
+    expect(serialized).toMatch(/utm(?:_|)campaign/i);
+  });
 });

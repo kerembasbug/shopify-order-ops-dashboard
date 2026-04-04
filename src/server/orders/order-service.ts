@@ -118,11 +118,22 @@ function buildSearchCondition(search: string) {
 }
 
 export function buildSourceSearchCondition(sourceSearch: string) {
-  if (!sourceSearch) {
+  const normalizedSourceSearch = sourceSearch.trim();
+
+  if (!normalizedSourceSearch) {
     return undefined;
   }
 
-  const pattern = `%${sourceSearch}%`;
+  if (normalizedSourceSearch.toLowerCase() === "direct") {
+    return sql<boolean>`(
+      coalesce(${orders.referrerHost}, '') = ''
+      and coalesce(${orders.utmSource}, '') = ''
+      and coalesce(${orders.utmMedium}, '') = ''
+      and coalesce(${orders.utmCampaign}, '') = ''
+    )`;
+  }
+
+  const pattern = `%${normalizedSourceSearch}%`;
 
   return sql<boolean>`(
     coalesce(${orders.salesChannel}, '') ilike ${pattern}

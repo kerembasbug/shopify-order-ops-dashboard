@@ -41,11 +41,26 @@ function parseDateValue(value: string | null) {
   return normalized;
 }
 
+function normalizeDateRange(dateFrom: string | null, dateTo: string | null) {
+  if (!dateFrom || !dateTo || dateFrom <= dateTo) {
+    return { dateFrom, dateTo };
+  }
+
+  return {
+    dateFrom: dateTo,
+    dateTo: dateFrom,
+  };
+}
+
 export function parseOrderFilters(searchParams: URLSearchParams): OrderFilters {
   const fulfillment = (searchParams.get("fulfillment") ?? "all").trim().toLowerCase();
   const normalizedFulfillment = fulfillmentValues.has(fulfillment)
     ? (fulfillment as OrderFilters["fulfillment"])
     : "all";
+  const normalizedDateRange = normalizeDateRange(
+    parseDateValue(searchParams.get("from")),
+    parseDateValue(searchParams.get("to")),
+  );
 
   return {
     storeId: parseStoreId(searchParams.get("store")),
@@ -54,7 +69,7 @@ export function parseOrderFilters(searchParams: URLSearchParams): OrderFilters {
     hasNotes: searchParams.get("notes") === "true",
     search: (searchParams.get("search") ?? "").trim(),
     sourceSearch: (searchParams.get("source") ?? "").trim(),
-    dateFrom: parseDateValue(searchParams.get("from")),
-    dateTo: parseDateValue(searchParams.get("to")),
+    dateFrom: normalizedDateRange.dateFrom,
+    dateTo: normalizedDateRange.dateTo,
   };
 }
