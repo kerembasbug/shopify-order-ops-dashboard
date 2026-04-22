@@ -744,6 +744,7 @@ export async function getOrderDetail(orderId: number) {
       id: orders.id,
       storeId: orders.storeId,
       storeName: stores.name,
+      shopDomain: stores.shopDomain,
       shopifyOrderId: orders.shopifyOrderId,
       shopifyOrderNumber: orders.shopifyOrderNumber,
       createdAt: orders.createdAt,

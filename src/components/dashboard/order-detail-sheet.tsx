@@ -64,6 +64,7 @@ type CustomerEventDetail = {
 type OrderDetail = {
   id: number;
   storeName: string;
+  shopDomain: string;
   shopifyOrderId: string;
   shopifyOrderNumber: number;
   createdAt: Date | string;
@@ -102,16 +103,31 @@ function normalizeTags(tags: string[] | null | undefined) {
   return Array.isArray(tags) ? tags.filter((t) => typeof t === "string" && t.length > 0) : [];
 }
 
-function SectionHeading({ title, count }: { title: string; count?: number }) {
+function SectionAccordion({ title, count, children, defaultOpen = true }: { title: string; count?: number; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600 }}>{title}</h3>
-      {count !== undefined && (
-        <span style={{ fontSize: "12px", color: "var(--text-muted)", background: "var(--bg-glass)", padding: "2px 8px", borderRadius: "999px", border: "1px solid var(--border-subtle)" }}>
-          {count}
-        </span>
-      )}
-    </div>
+    <details className="sheet-section" open={defaultOpen} style={{ marginBottom: "24px" }}>
+      <summary style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", outline: "none", cursor: "pointer", listStyle: "none" }}>
+        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="accordion-icon">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+          {title}
+        </h3>
+        {count !== undefined && (
+          <span style={{ fontSize: "12px", color: "var(--text-muted)", background: "var(--bg-glass)", padding: "2px 8px", borderRadius: "999px", border: "1px solid var(--border-subtle)" }}>
+            {count}
+          </span>
+        )}
+      </summary>
+      <div style={{ paddingLeft: "22px", cursor: "default" }}>
+        {children}
+      </div>
+      <style dangerouslySetInnerHTML={{__html: `
+        details[open] summary .accordion-icon { transform: rotate(90deg); }
+        .accordion-icon { transition: transform 0.2s ease; }
+        summary::-webkit-details-marker { display: none; }
+      `}} />
+    </details>
   );
 }
 
@@ -138,13 +154,25 @@ export function OrderDetailSheet({
             {/* Header */}
             <div className="sheet-header">
               <div>
-                <p style={{ margin: "0 0 4px", fontSize: "12px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
-                  Order Detail
-                </p>
-                <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 700 }}>
-                  #{order.shopifyOrderNumber}
-                </h2>
-                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--text-secondary)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
+                  <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 700 }}>
+                    #{order.shopifyOrderNumber}
+                  </h2>
+                  <a
+                    href={`https://${order.shopDomain}/admin/orders/${order.shopifyOrderId.replace("gid://shopify/Order/", "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: "4px",
+                      padding: "4px 8px", borderRadius: "var(--radius-sm)",
+                      background: "var(--accent-teal-soft)", color: "var(--accent-teal)",
+                      fontSize: "12px", fontWeight: 600, textDecoration: "none"
+                    }}
+                  >
+                    Open in Shopify ↗
+                  </a>
+                </div>
+                <p style={{ margin: "0", fontSize: "13px", color: "var(--text-secondary)" }}>
                   {order.storeName}
                 </p>
               </div>
@@ -166,8 +194,7 @@ export function OrderDetailSheet({
               )}
 
               {/* Snapshot */}
-              <div className="sheet-section">
-                <SectionHeading title="Snapshot" />
+              <SectionAccordion title="Snapshot">
                 <dl className="meta-grid">
                   {[
                     ["Total", formatCurrency(order.totalPrice, order.currencyCode)],
@@ -189,11 +216,10 @@ export function OrderDetailSheet({
                     </div>
                   ))}
                 </dl>
-              </div>
+              </SectionAccordion>
 
               {/* Attribution */}
-              <div className="sheet-section">
-                <SectionHeading title="Attribution" />
+              <SectionAccordion title="Attribution" defaultOpen={false}>
                 <dl className="meta-grid">
                   {[
                     ["Sales channel", order.salesChannel ? formatStatusLabel(order.salesChannel) : "Direct / unknown"],
@@ -207,11 +233,10 @@ export function OrderDetailSheet({
                     </div>
                   ))}
                 </dl>
-              </div>
+              </SectionAccordion>
 
               {/* Customer Timeline */}
-              <div className="sheet-section">
-                <SectionHeading title="Customer Timeline" count={order.customerEvents.length} />
+              <SectionAccordion title="Customer Timeline" count={order.customerEvents.length}>
                 <div style={{ padding: "10px 12px", background: "var(--accent-blue-soft)", border: "1px solid rgba(74,158,255,0.2)", borderRadius: "var(--radius-sm)", fontSize: "12px", color: "var(--accent-blue)", marginBottom: "12px" }}>
                   <strong>MCP-ready.</strong> External automation can write customer messages into this timeline.
                 </div>
@@ -233,11 +258,10 @@ export function OrderDetailSheet({
                     ))}
                   </div>
                 )}
-              </div>
+              </SectionAccordion>
 
               {/* Fulfillment */}
-              <div className="sheet-section">
-                <SectionHeading title="Fulfillment" count={order.fulfillments.length} />
+              <SectionAccordion title="Fulfillment" count={order.fulfillments.length}>
                 {order.fulfillments.length === 0 ? (
                   <p style={{ color: "var(--text-muted)", fontSize: "13px", margin: 0 }}>No fulfillment records yet.</p>
                 ) : (
@@ -260,11 +284,10 @@ export function OrderDetailSheet({
                     ))}
                   </div>
                 )}
-              </div>
+              </SectionAccordion>
 
               {/* Notes */}
-              <div className="sheet-section">
-                <SectionHeading title="Notes" count={order.notes.length} />
+              <SectionAccordion title="Notes" count={order.notes.length} defaultOpen={false}>
                 <NoteComposer orderId={order.id} />
                 {order.notes.length === 0 ? (
                   <p style={{ color: "var(--text-muted)", fontSize: "13px", margin: 0 }}>No operator notes yet.</p>
@@ -281,11 +304,10 @@ export function OrderDetailSheet({
                     ))}
                   </div>
                 )}
-              </div>
+              </SectionAccordion>
 
               {/* Issues */}
-              <div className="sheet-section">
-                <SectionHeading title="Issues" count={order.issues.length} />
+              <SectionAccordion title="Issues" count={order.issues.length}>
                 <div style={{ padding: "10px 12px", background: "var(--bg-glass)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px" }}>
                   <strong style={{ color: "var(--text-primary)" }}>OpenClaw managed.</strong> Issue records are created and updated by the OpenClaw workflow.
                 </div>
@@ -312,7 +334,7 @@ export function OrderDetailSheet({
                     ))}
                   </div>
                 )}
-              </div>
+              </SectionAccordion>
             </div>
           </>
         )}
