@@ -1,10 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { refreshOverviewSnapshot } from "@/server/orders/overview";
-import {
-  createSyncRepo,
-  createSyncRunsForSelection,
-  type SyncQueuePayload,
-} from "@/server/orders/order-service";
+import { createSyncRepo } from "@/server/orders/order-service";
 import {
   syncStore,
   type StoreIdentifier,
@@ -12,25 +8,16 @@ import {
 } from "@/server/orders/sync-store";
 import {
   createWorkerQueueClient,
-  SYNC_ALL_STORES_CRON,
-  SYNC_ALL_STORES_JOB_NAME,
-  SYNC_ALL_STORES_SCHEDULE_NAME,
   SYNC_STORE_JOB_NAME,
   type QueueClient,
 } from "@/server/queue";
 import { syncConfiguredStores } from "@/server/store-config";
 
-export {
-  SYNC_ALL_STORES_CRON,
-  SYNC_ALL_STORES_JOB_NAME,
-  SYNC_ALL_STORES_SCHEDULE_NAME,
-  SYNC_STORE_JOB_NAME,
-} from "@/server/queue";
+export { SYNC_STORE_JOB_NAME } from "@/server/queue";
 
 type WorkerDeps = {
   queue?: QueueClient;
   syncConfiguredStores?: () => Promise<unknown>;
-  createSyncRunsForSelection?: typeof createSyncRunsForSelection;
   createSyncRepo?: typeof createSyncRepo;
   syncStore?: typeof syncStore;
   refreshOverviewSnapshot?: (storeId: StoreIdentifier) => Promise<void>;
@@ -47,7 +34,6 @@ async function refreshOverviewForWorker(storeId: StoreIdentifier) {
 export async function startWorker(deps: WorkerDeps = {}) {
   const queueClient = deps.queue ?? createWorkerQueueClient();
   const bootstrapStores = deps.syncConfiguredStores ?? syncConfiguredStores;
-  const createRuns = deps.createSyncRunsForSelection ?? createSyncRunsForSelection;
   const createRepo = deps.createSyncRepo ?? createSyncRepo;
   const runStoreSync = deps.syncStore ?? syncStore;
   const refreshOverview = deps.refreshOverviewSnapshot ?? refreshOverviewForWorker;
@@ -68,26 +54,6 @@ export async function startWorker(deps: WorkerDeps = {}) {
     localConcurrency: 4,
     pollingIntervalSeconds: 1,
   });
-
-  await queueClient.subscribe<Record<string, never>>(
-    SYNC_ALL_STORES_JOB_NAME,
-    async () => {
-      const runs = await createRuns({
-        triggerType: "scheduled",
-      });
-
-      for (const run of runs) {
-        await queueClient.send<SyncQueuePayload>(SYNC_STORE_JOB_NAME, run);
-      }
-    },
-  );
-
-  await queueClient.schedule(
-    SYNC_ALL_STORES_SCHEDULE_NAME,
-    SYNC_ALL_STORES_CRON,
-    SYNC_ALL_STORES_JOB_NAME,
-    {},
-  );
 
   return {
     queue: queueClient,

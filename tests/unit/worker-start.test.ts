@@ -5,22 +5,12 @@ describe("startWorker", () => {
     vi.resetModules();
   });
 
-  it("boots the worker, registers handlers, and schedules sync-all jobs", async () => {
+  it("boots the worker and registers the store sync handler", async () => {
     const queue = {
       start: vi.fn().mockResolvedValue(undefined),
-      send: vi.fn().mockResolvedValue("job-id"),
       subscribe: vi.fn().mockResolvedValue("subscription-id"),
-      schedule: vi.fn().mockResolvedValue("schedule-id"),
     };
     const syncConfiguredStores = vi.fn().mockResolvedValue(undefined);
-    const createSyncRunsForSelection = vi.fn().mockResolvedValue([
-      {
-        storeId: 12,
-        syncRunId: 44,
-        storeDomain: "robot-arm.myshopify.com",
-        adminToken: "shpat_test",
-      },
-    ]);
     const repo = {
       markSyncStarted: vi.fn(),
       upsertMappedOrder: vi.fn(),
@@ -36,7 +26,6 @@ describe("startWorker", () => {
     await workerModule.startWorker({
       queue,
       syncConfiguredStores,
-      createSyncRunsForSelection,
       createSyncRepo,
       syncStore,
       refreshOverviewSnapshot,
@@ -44,7 +33,7 @@ describe("startWorker", () => {
 
     expect(syncConfiguredStores).toHaveBeenCalledTimes(1);
     expect(queue.start).toHaveBeenCalledTimes(1);
-    expect(queue.subscribe).toHaveBeenCalledTimes(2);
+    expect(queue.subscribe).toHaveBeenCalledTimes(1);
     expect(queue.subscribe).toHaveBeenNthCalledWith(
       1,
       workerModule.SYNC_STORE_JOB_NAME,
@@ -53,12 +42,6 @@ describe("startWorker", () => {
         localConcurrency: 4,
         pollingIntervalSeconds: 1,
       },
-    );
-    expect(queue.schedule).toHaveBeenCalledWith(
-      workerModule.SYNC_ALL_STORES_SCHEDULE_NAME,
-      workerModule.SYNC_ALL_STORES_CRON,
-      workerModule.SYNC_ALL_STORES_JOB_NAME,
-      {},
     );
 
     const syncStoreHandler = queue.subscribe.mock.calls.find(
@@ -88,23 +71,5 @@ describe("startWorker", () => {
         adminToken: "shpat_test",
       },
     );
-
-    const syncAllStoresHandler = queue.subscribe.mock.calls.find(
-      ([jobName]) => jobName === workerModule.SYNC_ALL_STORES_JOB_NAME,
-    )?.[1];
-
-    expect(syncAllStoresHandler).toBeTypeOf("function");
-
-    await syncAllStoresHandler();
-
-    expect(createSyncRunsForSelection).toHaveBeenCalledWith({
-      triggerType: "scheduled",
-    });
-    expect(queue.send).toHaveBeenCalledWith(workerModule.SYNC_STORE_JOB_NAME, {
-      storeId: 12,
-      syncRunId: 44,
-      storeDomain: "robot-arm.myshopify.com",
-      adminToken: "shpat_test",
-    });
   }, 15_000);
 });

@@ -67,13 +67,11 @@ describe("queue", () => {
     expect(onMock).toHaveBeenCalledWith("error", expect.any(Function));
     expect(startMock).toHaveBeenCalledTimes(1);
     expect(createQueueMock).toHaveBeenNthCalledWith(1, SYNC_STORE_JOB_NAME);
-    expect(createQueueMock).toHaveBeenNthCalledWith(2, "sync-all-stores");
     expect(sendMock).toHaveBeenCalledWith(SYNC_STORE_JOB_NAME, payload);
   });
 
   it("provisions the required queues before starting worker processing", async () => {
-    const { createQueueClient, SYNC_ALL_STORES_JOB_NAME, SYNC_STORE_JOB_NAME } =
-      await import("@/server/queue");
+    const { createQueueClient, SYNC_STORE_JOB_NAME } = await import("@/server/queue");
 
     const client = createQueueClient();
 
@@ -81,7 +79,6 @@ describe("queue", () => {
 
     expect(startMock).toHaveBeenCalledTimes(1);
     expect(createQueueMock).toHaveBeenNthCalledWith(1, SYNC_STORE_JOB_NAME);
-    expect(createQueueMock).toHaveBeenNthCalledWith(2, SYNC_ALL_STORES_JOB_NAME);
   });
 
   it("enables scheduler features for dedicated worker clients", async () => {
@@ -91,7 +88,7 @@ describe("queue", () => {
 
     expect(pgBossConstructorMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        schedule: true,
+        schedule: false,
         supervise: true,
       }),
     );

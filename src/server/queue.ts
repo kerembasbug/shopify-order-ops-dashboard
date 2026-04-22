@@ -3,9 +3,6 @@ import { getEnv } from "@/server/env";
 import type { SyncQueuePayload } from "@/server/orders/order-service";
 
 export const SYNC_STORE_JOB_NAME = "sync-store";
-export const SYNC_ALL_STORES_JOB_NAME = "sync-all-stores";
-export const SYNC_ALL_STORES_SCHEDULE_NAME = "scheduled-sync-all-stores";
-export const SYNC_ALL_STORES_CRON = "*/10 * * * *";
 
 export type QueueJob<T> = {
   data: T;
@@ -81,10 +78,7 @@ export function createQueueClient(
 
   async function ensureQueuesProvisioned() {
     if (!provisionQueuesPromise) {
-      provisionQueuesPromise = Promise.all([
-        boss.createQueue(SYNC_STORE_JOB_NAME),
-        boss.createQueue(SYNC_ALL_STORES_JOB_NAME),
-      ])
+      provisionQueuesPromise = Promise.all([boss.createQueue(SYNC_STORE_JOB_NAME)])
         .then(() => undefined)
         .catch((error) => {
           provisionQueuesPromise = undefined;
@@ -147,7 +141,6 @@ function getQueueClient() {
 
 export function createWorkerQueueClient(databaseUrl = getEnv().databaseUrl) {
   return createQueueClient(databaseUrl, {
-    schedule: true,
     supervise: true,
   });
 }
@@ -172,8 +165,4 @@ export const queue: QueueClient = {
 
 export async function enqueueStoreSync(payload: SyncQueuePayload) {
   await queue.send(SYNC_STORE_JOB_NAME, payload);
-}
-
-export async function enqueueSyncAllStores() {
-  await queue.send(SYNC_ALL_STORES_JOB_NAME, {});
 }

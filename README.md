@@ -37,6 +37,6 @@ Use Node `22.12+` locally, or run the app through Docker/Coolify so the bundled 
 ## Operational Notes
 
 - Manual sync requests enqueue `sync-store` jobs in Postgres through `pg-boss`.
-- The worker registers a recurring `sync-all-stores` schedule every 10 minutes.
+- The worker does not register a recurring sync schedule; refresh runs only when triggered manually.
 - The worker also bootstraps configured stores on startup, so renamed or inactive stores reconcile before sync begins.
-- The `/api/internal/sync/scheduled` endpoint is a legacy fallback trigger. Do not run an external cron against it when the worker service is active, or you will enqueue duplicate scheduled syncs.
+- The `/api/internal/sync/scheduled` endpoint is a legacy fallback trigger and should stay disabled unless intentionally wired.
