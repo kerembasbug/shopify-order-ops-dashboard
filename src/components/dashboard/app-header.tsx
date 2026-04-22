@@ -37,23 +37,25 @@ export function AppHeader({ storeCount, activeStoreLabel }: AppHeaderProps) {
     <header className="dashboard-header">
       <div className="dashboard-header__brand">
         <p className="dashboard-header__eyebrow">Shopify Order Ops</p>
-        <div className="dashboard-header__title-row">
-          <div>
-            <h1>Order desk</h1>
-            <p>
-              Cleaner daily visibility across {storeCount} store{storeCount === 1 ? "" : "s"}.
-            </p>
-          </div>
-          <dl className="dashboard-header__meta">
-            <div>
-              <dt>Scope</dt>
-              <dd>{activeStoreLabel}</dd>
-            </div>
-            <div>
-              <dt>Mode</dt>
-              <dd>Live sync, filters, and order context</dd>
-            </div>
-          </dl>
+        <h1>Order desk</h1>
+        <p className="dashboard-header__intro">
+          Cleaner daily visibility across {storeCount} store{storeCount === 1 ? "" : "s"} with a
+          calmer view of sync status, store performance, and order context.
+        </p>
+      </div>
+
+      <div className="dashboard-header__summary" aria-label="Dashboard summary">
+        <div className="dashboard-header__chip">
+          <strong>{storeCount}</strong>
+          <span>active stores</span>
+        </div>
+        <div className="dashboard-header__chip dashboard-header__chip--muted">
+          <strong>Scope</strong>
+          <span>{activeStoreLabel}</span>
+        </div>
+        <div className="dashboard-header__chip dashboard-header__chip--muted">
+          <strong>Sync</strong>
+          <span>Manual refresh only</span>
         </div>
       </div>
 

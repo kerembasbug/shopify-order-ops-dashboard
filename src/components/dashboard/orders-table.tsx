@@ -128,7 +128,7 @@ export function OrdersTable({
                     key={row.id}
                     className={row.id === selectedOrderId ? "orders-table__row--selected" : undefined}
                   >
-                    <td>
+                    <td data-label="Order">
                       <Link className="orders-table__link" href={href}>
                         #{row.shopifyOrderNumber}
                       </Link>
@@ -136,17 +136,17 @@ export function OrdersTable({
                         Synced {formatDate(row.lastSyncedAt)}
                       </p>
                     </td>
-                    <td>
+                    <td data-label="Customer">
                       <p className="orders-table__primary">{row.customerName ?? "Unknown"}</p>
                       <p className="orders-table__secondary">
                         {row.customerEmail ?? "No email"}
                       </p>
                     </td>
-                    <td>
+                    <td data-label="Store">
                       <p className="orders-table__primary">{row.storeName}</p>
                       <p className="orders-table__secondary">{row.countryCode ?? "—"}</p>
                     </td>
-                    <td>
+                    <td data-label="Source">
                       <p
                         className="orders-table__primary orders-table__truncate"
                         title={sourceSummary.primary}
@@ -160,13 +160,13 @@ export function OrdersTable({
                         {sourceSummary.secondary}
                       </p>
                     </td>
-                    <td>
+                    <td data-label="Date">
                       <p className="orders-table__primary">{formatDate(row.createdAt)}</p>
                       <p className="orders-table__secondary">
                         Updated {formatDate(row.updatedAt)}
                       </p>
                     </td>
-                    <td>
+                    <td data-label="Total">
                       <p className="orders-table__primary">
                         {formatCurrency(row.totalPrice, row.currencyCode)}
                       </p>
@@ -174,7 +174,7 @@ export function OrdersTable({
                         {row.trackingSummary ?? "Tracking pending"}
                       </p>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <div className="orders-table__status-stack">
                         <span className={`status-pill status-pill--${getFinancialTone(row.financialStatus)}`}>
                           {formatStatusLabel(row.financialStatus)}
@@ -184,7 +184,7 @@ export function OrdersTable({
                         </span>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Flags">
                       <div className="flag-list">
                         {row.hasOpenIssue ? <span className="flag-chip flag-chip--danger">Issue</span> : null}
                         {row.hasNotes ? <span className="flag-chip">Note</span> : null}
