@@ -72,8 +72,8 @@ export default async function HomePage({
   const { overview, orders, stores, filters } = data;
   const activeStoreCount = stores.filter((s) => s.status === "active").length;
   
-  // Format the comparison label if available
-  const comparisonLabel = overview.comparisonRange?.label ? `vs ${overview.comparisonRange.label}` : "vs previous period";
+  // Use a generic previous period string
+  const comparisonLabel = "vs previous period";
 
   return (
     <div>
@@ -121,56 +121,61 @@ export default async function HomePage({
       {/* KPI Cards */}
       <KpiCards data={{...overview, comparisonLabel}} />
 
-      {/* Charts row */}
+      {/* Main Content Layout */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "20px", marginBottom: "20px" }}>
-        {/* Revenue chart */}
-        <div className="panel">
-          <div className="panel__header">
-            <div>
-              <p className="panel__eyebrow">Revenue Trend</p>
-              <h2 className="panel__title" style={{ fontSize: "16px" }}>Daily gross sales</h2>
+        
+        {/* Left Column (Orders & Charts) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          
+          {/* Mini order list elevated to top */}
+          <div className="panel" style={{ padding: 0 }}>
+            <div className="panel__header" style={{ padding: "20px 20px 0" }}>
+              <div>
+                <p className="panel__eyebrow">Order Queue</p>
+                <h2 className="panel__title" style={{ fontSize: "16px" }}>Recent orders</h2>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: "12px", fontSize: "12px", color: "var(--text-secondary)", alignItems: "center" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-teal)", display: "inline-block" }} />
-                Revenue
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent-coral)", display: "inline-block" }} />
-                Chargeback
-              </span>
-            </div>
+            <MiniOrderList rows={orders} />
           </div>
-          <RevenueChart data={overview.analytics.dailyTrend} />
+
+          {/* Revenue chart */}
+          <div className="panel">
+            <div className="panel__header">
+              <div>
+                <p className="panel__eyebrow">Revenue Trend</p>
+                <h2 className="panel__title" style={{ fontSize: "16px" }}>Daily gross sales</h2>
+              </div>
+              <div style={{ display: "flex", gap: "12px", fontSize: "12px", color: "var(--text-secondary)", alignItems: "center" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-teal)", display: "inline-block" }} />
+                  Revenue
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent-coral)", display: "inline-block" }} />
+                  Chargeback
+                </span>
+              </div>
+            </div>
+            <RevenueChart data={overview.analytics.dailyTrend} />
+          </div>
         </div>
 
-        {/* Donut chart */}
-        <div className="panel">
-          <div className="panel__header">
-            <div>
-              <p className="panel__eyebrow">Store Ranking</p>
-              <h2 className="panel__title" style={{ fontSize: "16px" }}>By orders</h2>
+        {/* Right Column (Donut & Sync) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Sync status */}
+          <SyncStatusCard runs={syncRuns} />
+          
+          {/* Donut chart */}
+          <div className="panel">
+            <div className="panel__header">
+              <div>
+                <p className="panel__eyebrow">Store Ranking</p>
+                <h2 className="panel__title" style={{ fontSize: "16px" }}>By orders</h2>
+              </div>
             </div>
+            <StoreDonut data={overview.analytics.storeBreakdown} />
           </div>
-          <StoreDonut data={overview.analytics.storeBreakdown} />
         </div>
-      </div>
-
-      {/* Recent Orders + Sync */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "20px" }}>
-        {/* Mini order list */}
-        <div className="panel" style={{ padding: 0 }}>
-          <div className="panel__header" style={{ padding: "20px 20px 0" }}>
-            <div>
-              <p className="panel__eyebrow">Order Queue</p>
-              <h2 className="panel__title" style={{ fontSize: "16px" }}>Recent orders</h2>
-            </div>
-          </div>
-          <MiniOrderList rows={orders} />
-        </div>
-
-        {/* Sync status */}
-        <SyncStatusCard runs={syncRuns} />
       </div>
     </div>
   );

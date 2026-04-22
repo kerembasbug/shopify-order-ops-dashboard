@@ -127,6 +127,14 @@ function getHasNotesExistsSql() {
   )`;
 }
 
+function getHasEventsExistsSql() {
+  return sql<boolean>`exists (
+    select 1
+    from ${orderCustomerEvents}
+    where ${orderCustomerEvents.orderId} = ${orders.id}
+  )`;
+}
+
 function formatUtcDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -607,6 +615,7 @@ export async function listOrders(searchParams: URLSearchParams) {
   const filters = parseOrderFilters(searchParams);
   const hasOpenIssue = getOpenIssueExistsSql();
   const hasNotes = getHasNotesExistsSql();
+  const hasEvents = getHasEventsExistsSql();
   const hasChargebackTag = getChargebackTagExistsSql();
   const whereClause = buildOrderWhereClause(filters);
 
@@ -634,6 +643,7 @@ export async function listOrders(searchParams: URLSearchParams) {
       utmCampaign: orders.utmCampaign,
       hasOpenIssue,
       hasNotes,
+      hasEvents,
       hasChargeback: hasChargebackTag,
       lastSyncedAt: orders.lastSyncedAt,
     })

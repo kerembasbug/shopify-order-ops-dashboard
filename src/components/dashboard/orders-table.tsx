@@ -31,6 +31,7 @@ export type OrdersTableRow = {
   trackingSummary: string | null;
   hasOpenIssue: boolean;
   hasNotes: boolean;
+  hasEvents: boolean;
   hasChargeback: boolean;
   lastSyncedAt: Date | string | null;
   salesChannel: string | null;
@@ -137,8 +138,9 @@ export function OrdersTable({ rows, currentQuery, selectedOrderId }: OrdersTable
                       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                         {row.hasOpenIssue && <StatusPill label="Issue" tone="danger" />}
                         {row.hasChargeback && <StatusPill label="CB" tone="danger" />}
+                        {row.hasEvents && <StatusPill label="Msg" tone="warning" />}
                         {row.hasNotes && <StatusPill label="Note" tone="neutral" />}
-                        {!row.hasOpenIssue && !row.hasChargeback && !row.hasNotes && (
+                        {!row.hasOpenIssue && !row.hasChargeback && !row.hasNotes && !row.hasEvents && (
                           <StatusPill label="Clear" tone="success" />
                         )}
                       </div>

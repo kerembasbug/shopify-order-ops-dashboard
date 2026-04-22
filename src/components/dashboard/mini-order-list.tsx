@@ -18,6 +18,7 @@ type MiniOrderRow = {
   financialStatus: string | null;
   fulfillmentStatus: string | null;
   hasChargeback: boolean;
+  hasEvents: boolean;
 };
 
 type MiniOrderListProps = {
@@ -73,6 +74,9 @@ export function MiniOrderList({ rows }: MiniOrderListProps) {
           <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
             <StatusPill label={formatStatusLabel(row.financialStatus)} tone={financialTone(row.financialStatus)} />
             <StatusPill label={formatStatusLabel(row.fulfillmentStatus)} tone={fulfillmentTone(row.fulfillmentStatus)} />
+            {row.hasEvents && (
+              <StatusPill label="Msg" tone="warning" />
+            )}
             {row.hasChargeback && (
               <StatusPill label="CB" tone="danger" />
             )}
