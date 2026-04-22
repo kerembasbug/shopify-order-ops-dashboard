@@ -19,6 +19,17 @@ type FilterBarProps = {
 
 type DatePreset = "today" | "last7" | "last30" | "month";
 
+function hasAdvancedFiltersActive(filters: OrderFilters) {
+  return (
+    filters.fulfillment !== "all" ||
+    Boolean(filters.sourceSearch) ||
+    filters.hasIssues ||
+    filters.hasNotes ||
+    filters.hasChargeback ||
+    Boolean(filters.dateFrom || filters.dateTo)
+  );
+}
+
 function formatUtcDateInput(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -76,6 +87,9 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
   const [hasChargeback, setHasChargeback] = useState(filters.hasChargeback);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(() =>
+    hasAdvancedFiltersActive(filters),
+  );
   const [isApplying, startApplyTransition] = useTransition();
 
   useEffect(() => {
@@ -88,6 +102,7 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     setHasIssues(filters.hasIssues);
     setHasNotes(filters.hasNotes);
     setHasChargeback(filters.hasChargeback);
+    setShowAdvancedFilters(hasAdvancedFiltersActive(filters));
   }, [
     filters.dateFrom,
     filters.dateTo,
@@ -212,130 +227,154 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
       <div className="panel__header">
         <div>
           <p className="panel__eyebrow">Controls</p>
-          <h2 className="panel__title">Orders, date range, and store scope</h2>
+          <h2 className="panel__title">Store scope and refresh</h2>
         </div>
       </div>
 
-      <div className="filter-bar__presets" role="group" aria-label="Quick date ranges">
-        <button className="button button--ghost" type="button" onClick={() => handlePresetClick("today")}>
-          Today
-        </button>
-        <button className="button button--ghost" type="button" onClick={() => handlePresetClick("last7")}>
-          Last 7 days
-        </button>
-        <button className="button button--ghost" type="button" onClick={() => handlePresetClick("last30")}>
-          Last 30 days
-        </button>
-        <button className="button button--ghost" type="button" onClick={() => handlePresetClick("month")}>
-          This month
-        </button>
-      </div>
+      <form className="filter-bar filter-bar--minimal" onSubmit={handleApply}>
+        <div className="filter-bar__primary">
+          <label className="field field--compact">
+            <span>Store</span>
+            <select value={storeId} onChange={(event) => setStoreId(event.target.value)}>
+              <option value="">All stores</option>
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
+                  {store.status !== "active" ? " (inactive)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      <form className="filter-bar" onSubmit={handleApply}>
-        <label className="field">
-          <span>Store</span>
-          <select value={storeId} onChange={(event) => setStoreId(event.target.value)}>
-            <option value="">All stores</option>
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name}
-                {store.status !== "active" ? " (inactive)" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="field field--search-inline">
+            <span>Search</span>
+            <input
+              aria-label="Search orders"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Order, customer, email"
+            />
+          </label>
 
-        <label className="field">
-          <span>Fulfillment</span>
-          <select
-            value={fulfillment}
-            onChange={(event) =>
-              setFulfillment(event.target.value as OrderFilters["fulfillment"])
-            }
-          >
-            <option value="all">All statuses</option>
-            <option value="fulfilled">Fulfilled</option>
-            <option value="unfulfilled">Unfulfilled</option>
-          </select>
-        </label>
+          <div className="filter-bar__preset-stack">
+            <span className="filter-bar__mini-label">Date range</span>
+            <div className="filter-bar__presets" role="group" aria-label="Quick date ranges">
+              <button className="button button--ghost" type="button" onClick={() => handlePresetClick("today")}>
+                Today
+              </button>
+              <button className="button button--ghost" type="button" onClick={() => handlePresetClick("last7")}>
+                Last 7 days
+              </button>
+              <button className="button button--ghost" type="button" onClick={() => handlePresetClick("last30")}>
+                Last 30 days
+              </button>
+              <button className="button button--ghost" type="button" onClick={() => handlePresetClick("month")}>
+                This month
+              </button>
+            </div>
+          </div>
 
-        <label className="field field--search">
-          <span>Search</span>
-          <input
-            aria-label="Search orders"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Order, customer, email"
-          />
-        </label>
-
-        <label className="field field--source">
-          <span>Source</span>
-          <input
-            aria-label="Search order sources"
-            value={sourceSearch}
-            onChange={(event) => setSourceSearch(event.target.value)}
-            placeholder="Meta, Google, Klaviyo, direct"
-          />
-        </label>
-
-        <label className="field">
-          <span>From</span>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
-          />
-        </label>
-
-        <label className="field">
-          <span>To</span>
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-        </label>
-
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={hasIssues}
-            onChange={(event) => setHasIssues(event.target.checked)}
-          />
-          <span>Issues only</span>
-        </label>
-
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={hasNotes}
-            onChange={(event) => setHasNotes(event.target.checked)}
-          />
-          <span>Notes only</span>
-        </label>
-
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={hasChargeback}
-            onChange={(event) => setHasChargeback(event.target.checked)}
-          />
-          <span>Chargeback tag</span>
-        </label>
-
-        <div className="filter-bar__actions">
-          <button className="button" type="submit" disabled={isApplying}>
-            {isApplying ? "Applying..." : "Apply filters"}
-          </button>
-          <button className="button button--ghost" type="button" onClick={handleClear}>
-            Clear
-          </button>
-          <button
-            className="button button--accent"
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? "Refreshing..." : "Refresh now"}
-          </button>
+          <div className="filter-bar__actions filter-bar__actions--primary">
+            <button
+              className="button button--ghost"
+              type="button"
+              aria-expanded={showAdvancedFilters}
+              aria-controls="advanced-filters"
+              onClick={() => setShowAdvancedFilters((current) => !current)}
+            >
+              {showAdvancedFilters ? "Hide filters" : "More filters"}
+            </button>
+            <button className="button button--ghost" type="button" onClick={handleClear}>
+              Clear
+            </button>
+            <button className="button" type="submit" disabled={isApplying}>
+              {isApplying ? "Applying..." : "Apply filters"}
+            </button>
+            <button
+              className="button button--accent"
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? "Refreshing..." : "Refresh now"}
+            </button>
+          </div>
         </div>
+
+        {showAdvancedFilters ? (
+          <div id="advanced-filters" className="filter-bar__advanced">
+            <label className="field">
+              <span>Fulfillment</span>
+              <select
+                value={fulfillment}
+                onChange={(event) =>
+                  setFulfillment(event.target.value as OrderFilters["fulfillment"])
+                }
+              >
+                <option value="all">All statuses</option>
+                <option value="fulfilled">Fulfilled</option>
+                <option value="unfulfilled">Unfulfilled</option>
+              </select>
+            </label>
+
+            <label className="field field--source">
+              <span>Source</span>
+              <input
+                aria-label="Search order sources"
+                value={sourceSearch}
+                onChange={(event) => setSourceSearch(event.target.value)}
+                placeholder="Meta, Google, Klaviyo, direct"
+              />
+            </label>
+
+            <label className="field">
+              <span>From</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+            </label>
+
+            <label className="field">
+              <span>To</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </label>
+
+            <div className="filter-bar__toggles" aria-label="Advanced toggles">
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={hasIssues}
+                  onChange={(event) => setHasIssues(event.target.checked)}
+                />
+                <span>Issues only</span>
+              </label>
+
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={hasNotes}
+                  onChange={(event) => setHasNotes(event.target.checked)}
+                />
+                <span>Notes only</span>
+              </label>
+
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={hasChargeback}
+                  onChange={(event) => setHasChargeback(event.target.checked)}
+                />
+                <span>Chargeback tag</span>
+              </label>
+            </div>
+          </div>
+        ) : null}
       </form>
 
       {refreshError ? (

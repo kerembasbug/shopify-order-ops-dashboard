@@ -10,12 +10,17 @@ test("dashboard renders overview cards and the orders table", async ({ page }) =
 
   await expect(overviewRegion).toBeVisible({ timeout: 15_000 });
   await expect(
-    overviewRegion.getByText("Selected Sales", { exact: true }),
+    overviewRegion.getByText("Total Revenue", { exact: true }),
   ).toBeVisible();
   await expect(
-    overviewRegion.getByText("Previous Sales", { exact: true }),
+    overviewRegion.getByText("Orders", { exact: true }),
   ).toBeVisible();
-  await expect(overviewRegion.getByText("Growth", { exact: true })).toBeVisible();
+  await expect(
+    overviewRegion.getByText("Average Order Value", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    overviewRegion.getByText("Chargeback Watch", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText(
       "Live order data could not be loaded. Showing an empty dashboard shell.",

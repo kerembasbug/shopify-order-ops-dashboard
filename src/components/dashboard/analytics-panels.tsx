@@ -37,34 +37,48 @@ function getBarHeight(value: number, maxValue: number) {
   return Math.max(16, Math.round((value / maxValue) * 100));
 }
 
+function parseAmount(value: string) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function AnalyticsPanels({ analytics }: AnalyticsPanelsProps) {
-  const maxDailyOrders = Math.max(0, ...analytics.dailyTrend.map((point) => point.totalOrders));
-  const maxStoreOrders = Math.max(0, ...analytics.storeBreakdown.map((point) => point.totalOrders));
+  const maxDailySales = Math.max(
+    0,
+    ...analytics.dailyTrend.map((point) => parseAmount(point.totalSalesAmount)),
+  );
+  const maxStoreSales = Math.max(
+    0,
+    ...analytics.storeBreakdown.map((point) => parseAmount(point.totalSalesAmount)),
+  );
 
   return (
     <section className="analytics-grid" aria-label="Analytics">
       <article className="panel panel--analytics">
         <div className="panel__header">
           <div>
-            <p className="panel__eyebrow">Daily trend</p>
-            <h2 className="panel__title">Orders by day</h2>
+            <p className="panel__eyebrow">Revenue trend</p>
+            <h2 className="panel__title">Daily gross sales</h2>
           </div>
         </div>
 
         {analytics.dailyTrend.length === 0 ? (
-          <p className="panel__empty">No order activity in the selected range.</p>
+          <p className="panel__empty">No sales activity in the selected range.</p>
         ) : (
-          <div className="trend-chart" role="img" aria-label="Orders by day chart">
+          <div className="trend-chart" role="img" aria-label="Daily gross sales chart">
             {analytics.dailyTrend.map((point) => (
               <div key={point.date} className="trend-chart__day">
                 <div
                   className="trend-chart__bar"
-                  style={{ height: `${getBarHeight(point.totalOrders, maxDailyOrders)}%` }}
+                  style={{
+                    height: `${getBarHeight(
+                      parseAmount(point.totalSalesAmount),
+                      maxDailySales,
+                    )}%`,
+                  }}
                 />
                 <div className="trend-chart__meta">
-                  <strong>{point.totalOrders}</strong>
-                  <span>{formatIsoDateLabel(point.date)}</span>
-                  <small>
+                  <strong>
                     {
                       formatCurrencyScope(
                         point.totalSalesAmount,
@@ -73,6 +87,10 @@ export function AnalyticsPanels({ analytics }: AnalyticsPanelsProps) {
                         "No revenue",
                       ).value
                     }
+                  </strong>
+                  <span>{formatIsoDateLabel(point.date)}</span>
+                  <small>
+                    {point.totalOrders} order{point.totalOrders === 1 ? "" : "s"}
                   </small>
                   {point.chargebackOrdersCount > 0 ? (
                     <small className="trend-chart__chargeback">
@@ -89,13 +107,13 @@ export function AnalyticsPanels({ analytics }: AnalyticsPanelsProps) {
       <article className="panel panel--analytics">
         <div className="panel__header">
           <div>
-            <p className="panel__eyebrow">Store split</p>
-            <h2 className="panel__title">All-store performance</h2>
+            <p className="panel__eyebrow">Store ranking</p>
+            <h2 className="panel__title">Revenue by store</h2>
           </div>
         </div>
 
         {analytics.storeBreakdown.length === 0 ? (
-          <p className="panel__empty">No store performance data is available for this filter set.</p>
+          <p className="panel__empty">No store revenue data is available for this filter set.</p>
         ) : (
           <ul className="store-breakdown">
             {analytics.storeBreakdown.map((store) => (
@@ -122,7 +140,12 @@ export function AnalyticsPanels({ analytics }: AnalyticsPanelsProps) {
                 <div className="store-breakdown__bar-track">
                   <div
                     className="store-breakdown__bar"
-                    style={{ width: `${getBarHeight(store.totalOrders, maxStoreOrders)}%` }}
+                    style={{
+                      width: `${getBarHeight(
+                        parseAmount(store.totalSalesAmount),
+                        maxStoreSales,
+                      )}%`,
+                    }}
                   />
                 </div>
                 <div className="store-breakdown__footer">

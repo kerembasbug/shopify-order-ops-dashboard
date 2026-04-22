@@ -222,27 +222,27 @@ export default async function HomePage(props: HomePageProps) {
         </section>
       ))}
 
-      <div className="dashboard-grid">
-        <section className="dashboard-main">
-          <FilterBar filters={dashboardData.filters} stores={dashboardData.stores} />
-          <OverviewStrip cards={buildOverviewCards(dashboardData.overview)} />
-          <AnalyticsPanels analytics={dashboardData.overview.analytics} />
-          <OrdersTable
-            rows={dashboardData.orders}
-            currentQuery={currentQuery}
-            selectedOrderId={selectedOrderId}
-          />
-        </section>
-
-        <section className="dashboard-side">
+      <div className="dashboard-stack">
+        <FilterBar filters={dashboardData.filters} stores={dashboardData.stores} />
+        <OverviewStrip cards={buildOverviewCards(dashboardData.overview)} />
+        <AnalyticsPanels analytics={dashboardData.overview.analytics} />
+        <OrdersTable
+          rows={dashboardData.orders}
+          currentQuery={currentQuery}
+          selectedOrderId={selectedOrderId}
+        />
+        <section className="dashboard-secondary">
           <SyncStatusCard runs={syncRuns} />
-          <OrderDetailSheet
-            orderId={selectedOrderId}
-            order={selectedOrder}
-            currentQuery={currentQuery}
-          />
         </section>
       </div>
+
+      {selectedOrderId ? (
+        <OrderDetailSheet
+          orderId={selectedOrderId}
+          order={selectedOrder}
+          currentQuery={currentQuery}
+        />
+      ) : null}
     </main>
   );
 }

@@ -49,6 +49,7 @@ describe("FilterBar", () => {
 
     render(<FilterBar stores={[]} filters={buildFilters()} />);
 
+    await userEvent.click(screen.getByRole("button", { name: "More filters" }));
     await userEvent.type(screen.getByLabelText("Search order sources"), "Meta");
     await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
 
@@ -60,6 +61,7 @@ describe("FilterBar", () => {
   it("threads the chargeback toggle into the URL", async () => {
     render(<FilterBar stores={[]} filters={buildFilters()} />);
 
+    await userEvent.click(screen.getByRole("button", { name: "More filters" }));
     await userEvent.click(screen.getByLabelText("Chargeback tag"));
     await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
 

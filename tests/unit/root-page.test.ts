@@ -62,7 +62,7 @@ describe("buildOverviewCards", () => {
     globalThis.React = React;
   });
 
-  it("builds comparison-aware cards with separate current, previous, and empty money states", async () => {
+  it("builds revenue-first summary cards with comparison and empty states", async () => {
     const { buildOverviewCards } = await import("@/components/dashboard/build-overview-cards");
 
     const mixedCurrencyCards = buildOverviewCards({
@@ -88,17 +88,21 @@ describe("buildOverviewCards", () => {
       unfulfilledOrders: 4,
       openIssuesCount: 2,
       ordersWithNotesCount: 1,
+      chargebackOrdersCount: 2,
     });
 
-    const selectedSalesCard = mixedCurrencyCards.find((card) => card.label === "Selected Sales");
-    const previousSalesCard = mixedCurrencyCards.find((card) => card.label === "Previous Sales");
-    const growthCard = mixedCurrencyCards.find((card) => card.label === "Growth");
+    const revenueCard = mixedCurrencyCards.find((card) => card.label === "Total Revenue");
+    const ordersCard = mixedCurrencyCards.find((card) => card.label === "Orders");
+    const aovCard = mixedCurrencyCards.find((card) => card.label === "Average Order Value");
+    const chargebackCard = mixedCurrencyCards.find((card) => card.label === "Chargeback Watch");
 
-    expect(selectedSalesCard?.value).toBe("$1,250.50");
-    expect(selectedSalesCard?.hint).toContain("Current period");
-    expect(previousSalesCard?.value).toBe("Multi-currency");
-    expect(previousSalesCard?.hint).toContain("Currency mix prevents a reliable total.");
-    expect(growthCard?.trend?.direction).toBe("up");
+    expect(revenueCard?.value).toBe("$1,250.50");
+    expect(revenueCard?.hint).toContain("Current period");
+    expect(revenueCard?.trend?.direction).toBe("up");
+    expect(ordersCard?.value).toBe("12");
+    expect(aovCard?.value).toBe("$104.21");
+    expect(chargebackCard?.value).toBe("2");
+    expect(chargebackCard?.tone).toBe("danger");
 
     const emptyCards = buildOverviewCards({
       filters: {
@@ -123,11 +127,14 @@ describe("buildOverviewCards", () => {
       unfulfilledOrders: 0,
       openIssuesCount: 0,
       ordersWithNotesCount: 0,
+      chargebackOrdersCount: 0,
     });
 
-    const emptySelectedSalesCard = emptyCards.find((card) => card.label === "Selected Sales");
+    const emptyRevenueCard = emptyCards.find((card) => card.label === "Total Revenue");
+    const emptyAovCard = emptyCards.find((card) => card.label === "Average Order Value");
 
-    expect(emptySelectedSalesCard?.value).toBe("—");
-    expect(emptySelectedSalesCard?.hint).toBe("No orders in the current result set");
+    expect(emptyRevenueCard?.value).toBe("—");
+    expect(emptyRevenueCard?.hint).toBe("No orders in the current result set");
+    expect(emptyAovCard?.value).toBe("—");
   });
 });

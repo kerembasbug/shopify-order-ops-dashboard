@@ -1,5 +1,6 @@
 import type { OverviewCard } from "@/components/dashboard/overview-strip";
 import {
+  formatCurrency,
   formatCurrencyScope,
   formatIsoDateLabel,
 } from "@/components/dashboard/dashboard-utils";
@@ -39,19 +40,79 @@ function buildSalesCard(
   return formatCurrencyScope(amount, currencyCodes, `${periodLabel}: ${rangeLabel}`, emptyHint);
 }
 
+function buildAverageOrderValueCard(overview: OverviewData, currentRangeLabel: string) {
+  if (overview.totalOrders <= 0) {
+    return {
+      label: "Average Order Value",
+      value: "—",
+      hint: "No orders in the current result set",
+      tone: "default" as const,
+    };
+  }
+
+  const distinctCurrencyCodes = Array.from(
+    new Set(
+      overview.currencyCodes.filter(
+        (currencyCode): currencyCode is string => Boolean(currencyCode),
+      ),
+    ),
+  );
+
+  if (distinctCurrencyCodes.length !== 1) {
+    return {
+      label: "Average Order Value",
+      value: "Multi-currency",
+      hint: `AOV is only shown when ${currentRangeLabel} uses one currency.`,
+      tone: "default" as const,
+    };
+  }
+
+  const salesAmount = Number.parseFloat(overview.totalSalesAmount);
+  const averageOrderValue = salesAmount / overview.totalOrders;
+
+  return {
+    label: "Average Order Value",
+    value: formatCurrency(averageOrderValue, distinctCurrencyCodes[0]),
+    hint: `Revenue per order in ${currentRangeLabel}`,
+    tone: "default" as const,
+  };
+}
+
 export function buildOverviewCards(overview: OverviewData): OverviewCard[] {
   const currentRangeLabel = describeComparisonRange(
     overview.comparisonRange.currentFrom,
     overview.comparisonRange.currentTo,
   );
-  const previousRangeLabel = describeComparisonRange(
-    overview.comparisonRange.previousFrom,
-    overview.comparisonRange.previousTo,
+  const previousSales = buildSalesCard(
+    overview.previousSalesAmount,
+    overview.previousCurrencyCodes,
+    describeComparisonRange(
+      overview.comparisonRange.previousFrom,
+      overview.comparisonRange.previousTo,
+    ),
+    "Previous period",
+    "No orders in the previous comparison period",
   );
+  const revenueTrend =
+    overview.deltaDirection === "up"
+      ? {
+          direction: "up" as const,
+          label: `${overview.deltaPercentageLabel} vs previous`,
+        }
+      : overview.deltaDirection === "down"
+        ? {
+            direction: "down" as const,
+            label: `${overview.deltaPercentageLabel} vs previous`,
+          }
+        : {
+            direction: "flat" as const,
+            label:
+              previousSales.value === "—" ? "No comparison yet" : `Previous ${previousSales.value}`,
+          };
 
   return [
     {
-      label: "Selected Sales",
+      label: "Total Revenue",
       ...buildSalesCard(
         overview.totalSalesAmount,
         overview.currencyCodes,
@@ -60,61 +121,22 @@ export function buildOverviewCards(overview: OverviewData): OverviewCard[] {
         "No orders in the current result set",
       ),
       tone: "accent" as const,
-    },
-    {
-      label: "Previous Sales",
-      ...buildSalesCard(
-        overview.previousSalesAmount,
-        overview.previousCurrencyCodes,
-        previousRangeLabel,
-        "Previous period",
-        "No orders in the previous comparison period",
-      ),
-      tone: "default" as const,
-    },
-    {
-      label: "Growth",
-      value: overview.deltaPercentageLabel,
-      hint: `Compared with ${previousRangeLabel}`,
-      tone:
-        overview.deltaDirection === "up"
-          ? ("success" as const)
-          : overview.deltaDirection === "down"
-            ? ("danger" as const)
-            : ("default" as const),
-      trend: {
-        direction: overview.deltaDirection,
-        label: "Compared with previous period",
-      },
+      trend: revenueTrend,
     },
     {
       label: "Orders",
       value: overview.totalOrders.toLocaleString("en-US"),
-      hint: `Orders in ${currentRangeLabel}`,
+      hint: `${overview.fulfilledOrders.toLocaleString("en-US")} fulfilled in ${currentRangeLabel}`,
       tone: "default" as const,
     },
+    buildAverageOrderValueCard(overview, currentRangeLabel),
     {
-      label: "Fulfilled",
-      value: overview.fulfilledOrders.toLocaleString("en-US"),
-      hint: `Fulfilled orders in ${currentRangeLabel}`,
-      tone: "success" as const,
-    },
-    {
-      label: "Unfulfilled",
-      value: overview.unfulfilledOrders.toLocaleString("en-US"),
-      hint: `Unfulfilled orders in ${currentRangeLabel}`,
-      tone: "default" as const,
-    },
-    {
-      label: "Open Issues",
-      value: overview.openIssuesCount.toLocaleString("en-US"),
-      hint: `Open issues in ${currentRangeLabel}`,
-      tone: overview.openIssuesCount > 0 ? "danger" : "default",
-    },
-    {
-      label: "Chargebacks",
+      label: "Chargeback Watch",
       value: (overview.chargebackOrdersCount ?? 0).toLocaleString("en-US"),
-      hint: `Chargeback-tagged orders in ${currentRangeLabel}`,
+      hint:
+        (overview.chargebackOrdersCount ?? 0) > 0
+          ? `${overview.chargebackOrdersCount} tagged order(s) need follow-up`
+          : `No chargeback-tagged orders in ${currentRangeLabel}`,
       tone: (overview.chargebackOrdersCount ?? 0) > 0 ? "danger" : "default",
     },
   ];
