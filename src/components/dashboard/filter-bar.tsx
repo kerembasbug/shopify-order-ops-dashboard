@@ -151,22 +151,45 @@ export function FilterBar({ stores, filters, basePath }: FilterBarProps) {
     <div className="panel" style={{ marginBottom: "20px" }}>
       <form onSubmit={handleApply}>
         {/* Primary controls */}
-        <div style={{ display: "grid", gridTemplateColumns: "160px 1fr auto auto auto auto", gap: "10px", alignItems: "end" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "end" }}>
           {/* Store */}
-          <label className="field">
+          <div className="field">
             <span>Store</span>
-            <select className="select" value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-              <option value="">All stores</option>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="button"
+                style={{ 
+                  height: 40, padding: "0 12px", fontSize: "12px",
+                  background: storeId === "" ? "var(--accent-teal)" : "var(--bg-glass)",
+                  color: storeId === "" ? "#000" : "var(--text-secondary)",
+                  border: storeId === "" ? "none" : "1px solid var(--border-visible)"
+                }}
+                onClick={() => setStoreId("")}
+              >
+                All
+              </button>
               {stores.map((s) => (
-                <option key={s.id} value={s.id}>
+                <button
+                  key={s.id}
+                  type="button"
+                  className="button"
+                  style={{ 
+                    height: 40, padding: "0 12px", fontSize: "12px",
+                    background: storeId === String(s.id) ? "var(--accent-teal)" : "var(--bg-glass)",
+                    color: storeId === String(s.id) ? "#000" : "var(--text-secondary)",
+                    border: storeId === String(s.id) ? "none" : "1px solid var(--border-visible)"
+                  }}
+                  onClick={() => setStoreId(String(s.id))}
+                >
                   {s.name}{s.status !== "active" ? " (inactive)" : ""}
-                </option>
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+          </div>
 
           {/* Search */}
-          <label className="field">
+          <label className="field" style={{ flex: 1, minWidth: "200px" }}>
             <span>Search</span>
             <input
               className="input"
@@ -228,15 +251,51 @@ export function FilterBar({ stores, filters, basePath }: FilterBarProps) {
 
         {/* Advanced */}
         {showAdvanced && (
-          <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-subtle)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "10px", alignItems: "end" }}>
-            <label className="field">
+          <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-subtle)", display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "end" }}>
+            <div className="field">
               <span>Fulfillment</span>
-              <select className="select" value={fulfillment} onChange={(e) => setFulfillment(e.target.value as OrderFilters["fulfillment"])}>
-                <option value="all">All statuses</option>
-                <option value="fulfilled">Fulfilled</option>
-                <option value="unfulfilled">Unfulfilled</option>
-              </select>
-            </label>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="button"
+                  style={{ 
+                    height: 40, padding: "0 12px", fontSize: "12px",
+                    background: fulfillment === "all" ? "var(--accent-teal)" : "var(--bg-glass)",
+                    color: fulfillment === "all" ? "#000" : "var(--text-secondary)",
+                    border: fulfillment === "all" ? "none" : "1px solid var(--border-visible)"
+                  }}
+                  onClick={() => setFulfillment("all")}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  style={{ 
+                    height: 40, padding: "0 12px", fontSize: "12px",
+                    background: fulfillment === "fulfilled" ? "var(--accent-teal)" : "var(--bg-glass)",
+                    color: fulfillment === "fulfilled" ? "#000" : "var(--text-secondary)",
+                    border: fulfillment === "fulfilled" ? "none" : "1px solid var(--border-visible)"
+                  }}
+                  onClick={() => setFulfillment("fulfilled")}
+                >
+                  Fulfilled
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  style={{ 
+                    height: 40, padding: "0 12px", fontSize: "12px",
+                    background: fulfillment === "unfulfilled" ? "var(--accent-teal)" : "var(--bg-glass)",
+                    color: fulfillment === "unfulfilled" ? "#000" : "var(--text-secondary)",
+                    border: fulfillment === "unfulfilled" ? "none" : "1px solid var(--border-visible)"
+                  }}
+                  onClick={() => setFulfillment("unfulfilled")}
+                >
+                  Unfulfilled
+                </button>
+              </div>
+            </div>
             <label className="field">
               <span>Source</span>
               <input className="input" value={sourceSearch} onChange={(e) => setSourceSearch(e.target.value)} placeholder="Meta, Google, direct…" />
