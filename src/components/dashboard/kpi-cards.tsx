@@ -15,6 +15,9 @@ type KpiData = {
   currencyCodes: string[];
   deltaDirection: "up" | "down" | "flat";
   deltaPercentageLabel: string;
+  comparisonLabel?: string;
+  previousSalesAmount?: string;
+  previousCurrencyCodes?: string[];
 };
 
 export function KpiCards({ data }: { data: KpiData }) {
@@ -24,6 +27,14 @@ export function KpiCards({ data }: { data: KpiData }) {
     "",
     "—"
   );
+  
+  const { value: prevRevenueValue } = data.previousSalesAmount ? formatCurrencyScope(
+    data.previousSalesAmount,
+    data.previousCurrencyCodes ?? data.currencyCodes,
+    "",
+    "—"
+  ) : { value: null };
+
   const fulfillPct =
     data.totalOrders > 0
       ? Math.round((data.fulfilledOrders / data.totalOrders) * 100)
@@ -37,6 +48,7 @@ export function KpiCards({ data }: { data: KpiData }) {
           <span>Total Revenue</span>
           <span
             className={`kpi-card__trend kpi-card__trend--${data.deltaDirection}`}
+            title={data.comparisonLabel}
           >
             {data.deltaDirection === "up"
               ? `↑ ${data.deltaPercentageLabel}`
@@ -48,8 +60,9 @@ export function KpiCards({ data }: { data: KpiData }) {
         <div className="kpi-card__value" style={{ color: "var(--accent-teal)" }}>
           {revenueValue}
         </div>
-        <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-          {data.totalOrders.toLocaleString("en-US")} orders · {fulfillPct}% fulfilled
+        <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between" }}>
+          <span>{data.totalOrders.toLocaleString("en-US")} orders · {fulfillPct}% fulfilled</span>
+          {prevRevenueValue && <span title={data.comparisonLabel}>vs {prevRevenueValue}</span>}
         </div>
       </div>
 
@@ -57,6 +70,11 @@ export function KpiCards({ data }: { data: KpiData }) {
       <div className="kpi-card">
         <div className="kpi-card__label">
           <span>Orders</span>
+          {data.comparisonLabel && (
+            <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 500 }}>
+              {data.comparisonLabel}
+            </span>
+          )}
         </div>
         <div className="kpi-card__value">
           {data.totalOrders.toLocaleString("en-US")}
