@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { AnalyticsPanels } from "@/components/dashboard/analytics-panels";
 import { AppHeader } from "@/components/dashboard/app-header";
 import { buildOverviewCards } from "@/components/dashboard/build-overview-cards";
 import { FilterBar } from "@/components/dashboard/filter-bar";
@@ -87,6 +88,25 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
       unfulfilledOrders: 0,
       openIssuesCount: 0,
       ordersWithNotesCount: 0,
+      chargebackOrdersCount: 0,
+      analytics: {
+        dailyTrend: [] as Array<{
+          date: string;
+          totalOrders: number;
+          totalSalesAmount: string;
+          chargebackOrdersCount: number;
+          currencyCodes: string[];
+        }>,
+        storeBreakdown: [] as Array<{
+          storeId: number;
+          storeName: string;
+          totalOrders: number;
+          totalSalesAmount: string;
+          chargebackOrdersCount: number;
+          fulfilledOrders: number;
+          currencyCodes: string[];
+        }>,
+      },
     },
     orders: [] as Array<{
       id: number;
@@ -111,6 +131,7 @@ function buildEmptyDashboardData(searchParams: URLSearchParams) {
       utmCampaign: string | null;
       hasOpenIssue: boolean;
       hasNotes: boolean;
+      hasChargeback: boolean;
       lastSyncedAt: Date | string | null;
     }>,
   };
@@ -201,11 +222,11 @@ export default async function HomePage(props: HomePageProps) {
         </section>
       ))}
 
-      <OverviewStrip cards={buildOverviewCards(dashboardData.overview)} />
-
       <div className="dashboard-grid">
         <section className="dashboard-main">
           <FilterBar filters={dashboardData.filters} stores={dashboardData.stores} />
+          <OverviewStrip cards={buildOverviewCards(dashboardData.overview)} />
+          <AnalyticsPanels analytics={dashboardData.overview.analytics} />
           <OrdersTable
             rows={dashboardData.orders}
             currentQuery={currentQuery}

@@ -39,9 +39,9 @@ export function AppHeader({ storeCount, activeStoreLabel }: AppHeaderProps) {
         <p className="dashboard-header__eyebrow">Shopify Order Ops</p>
         <div className="dashboard-header__title-row">
           <div>
-            <h1>Ops ledger</h1>
+            <h1>Order desk</h1>
             <p>
-              Single-owner visibility across {storeCount} store{storeCount === 1 ? "" : "s"}.
+              Cleaner daily visibility across {storeCount} store{storeCount === 1 ? "" : "s"}.
             </p>
           </div>
           <dl className="dashboard-header__meta">
@@ -51,7 +51,7 @@ export function AppHeader({ storeCount, activeStoreLabel }: AppHeaderProps) {
             </div>
             <div>
               <dt>Mode</dt>
-              <dd>Scheduled sync + manual refresh</dd>
+              <dd>Live sync, filters, and order context</dd>
             </div>
           </dl>
         </div>

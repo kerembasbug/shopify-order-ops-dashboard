@@ -25,6 +25,7 @@ export type OrdersTableRow = {
   trackingSummary: string | null;
   hasOpenIssue: boolean;
   hasNotes: boolean;
+  hasChargeback: boolean;
   lastSyncedAt: Date | string | null;
   salesChannel: string | null;
   landingPagePath: string | null;
@@ -58,8 +59,23 @@ function getFulfillmentTone(status: string | null) {
   return status?.toUpperCase() === "FULFILLED" ? "success" : "muted";
 }
 
-function getCellText(value: string | null | undefined) {
-  return value?.trim() ?? "";
+function joinCopy(values: Array<string | null | undefined>) {
+  return values.map((value) => value?.trim() ?? "").filter(Boolean).join(" • ");
+}
+
+function buildSourceSummary(row: OrdersTableRow) {
+  return {
+    primary:
+      joinCopy([
+        row.salesChannel,
+        formatLandingPageLabel(row.landingPagePath),
+      ]) || "Direct / unattributed",
+    secondary:
+      joinCopy([
+        row.referrerHost,
+        formatUtmSummary(row.utmSource, row.utmMedium, row.utmCampaign),
+      ]) || "No referrer or UTM context",
+  };
 }
 
 export function OrdersTable({
@@ -71,8 +87,8 @@ export function OrdersTable({
     <section className="panel panel--table">
       <div className="panel__header">
         <div>
-          <p className="panel__eyebrow">Unified queue</p>
-          <h2 className="panel__title">Orders</h2>
+          <p className="panel__eyebrow">Order queue</p>
+          <h2 className="panel__title">Live orders</h2>
         </div>
       </div>
 
@@ -80,29 +96,23 @@ export function OrdersTable({
         <table className="orders-table">
           <thead>
             <tr>
-              <th>Store</th>
               <th>Order</th>
-              <th>Date</th>
               <th>Customer</th>
-              <th>Sales Channel</th>
-              <th>Landing Page</th>
-              <th>Referrer / Source</th>
-              <th>UTM</th>
-              <th>Market</th>
+              <th>Store</th>
+              <th>Source</th>
+              <th>Date</th>
               <th>Total</th>
-              <th>Payment</th>
-              <th>Fulfillment</th>
-              <th>Tracking</th>
+              <th>Status</th>
               <th>Flags</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={14}>
+                <td colSpan={8}>
                   <div className="orders-table__empty">
                     <h3>No orders match this filter set.</h3>
-                    <p>Try broadening the date range, store scope, or issue filters.</p>
+                    <p>Try broadening the date range, store scope, or tag filters.</p>
                   </div>
                 </td>
               </tr>
@@ -111,14 +121,7 @@ export function OrdersTable({
                 const href = buildPathWithParams("/", currentQuery, {
                   orderId: row.id,
                 });
-                const salesChannel = getCellText(row.salesChannel);
-                const landingPageLabel = formatLandingPageLabel(row.landingPagePath);
-                const referrerHost = getCellText(row.referrerHost);
-                const utmSummary = formatUtmSummary(
-                  row.utmSource,
-                  row.utmMedium,
-                  row.utmCampaign,
-                );
+                const sourceSummary = buildSourceSummary(row);
 
                 return (
                   <tr
@@ -126,20 +129,11 @@ export function OrdersTable({
                     className={row.id === selectedOrderId ? "orders-table__row--selected" : undefined}
                   >
                     <td>
-                      <p className="orders-table__primary">{row.storeName}</p>
-                      <p className="orders-table__secondary">
-                        Synced {formatDate(row.lastSyncedAt)}
-                      </p>
-                    </td>
-                    <td>
                       <Link className="orders-table__link" href={href}>
                         #{row.shopifyOrderNumber}
                       </Link>
-                    </td>
-                    <td>
-                      <p className="orders-table__primary">{formatDate(row.createdAt)}</p>
                       <p className="orders-table__secondary">
-                        Updated {formatDate(row.updatedAt)}
+                        Synced {formatDate(row.lastSyncedAt)}
                       </p>
                     </td>
                     <td>
@@ -149,55 +143,55 @@ export function OrdersTable({
                       </p>
                     </td>
                     <td>
-                      <p
-                        className="orders-table__primary orders-table__truncate"
-                        title={salesChannel || undefined}
-                      >
-                        {salesChannel || "—"}
-                      </p>
+                      <p className="orders-table__primary">{row.storeName}</p>
+                      <p className="orders-table__secondary">{row.countryCode ?? "—"}</p>
                     </td>
                     <td>
                       <p
                         className="orders-table__primary orders-table__truncate"
-                        title={landingPageLabel || undefined}
+                        title={sourceSummary.primary}
                       >
-                        {landingPageLabel || "—"}
+                        {sourceSummary.primary}
                       </p>
-                    </td>
-                    <td>
                       <p
-                        className="orders-table__primary orders-table__truncate"
-                        title={referrerHost || undefined}
+                        className="orders-table__secondary orders-table__truncate"
+                        title={sourceSummary.secondary}
                       >
-                        {referrerHost || "—"}
+                        {sourceSummary.secondary}
                       </p>
                     </td>
                     <td>
-                      <p
-                        className="orders-table__primary orders-table__truncate"
-                        title={utmSummary || undefined}
-                      >
-                        {utmSummary || "—"}
+                      <p className="orders-table__primary">{formatDate(row.createdAt)}</p>
+                      <p className="orders-table__secondary">
+                        Updated {formatDate(row.updatedAt)}
                       </p>
                     </td>
-                    <td>{row.countryCode ?? "—"}</td>
-                    <td>{formatCurrency(row.totalPrice, row.currencyCode)}</td>
                     <td>
-                      <span className={`status-pill status-pill--${getFinancialTone(row.financialStatus)}`}>
-                        {formatStatusLabel(row.financialStatus)}
-                      </span>
+                      <p className="orders-table__primary">
+                        {formatCurrency(row.totalPrice, row.currencyCode)}
+                      </p>
+                      <p className="orders-table__secondary">
+                        {row.trackingSummary ?? "Tracking pending"}
+                      </p>
                     </td>
                     <td>
-                      <span className={`status-pill status-pill--${getFulfillmentTone(row.fulfillmentStatus)}`}>
-                        {formatStatusLabel(row.fulfillmentStatus)}
-                      </span>
+                      <div className="orders-table__status-stack">
+                        <span className={`status-pill status-pill--${getFinancialTone(row.financialStatus)}`}>
+                          {formatStatusLabel(row.financialStatus)}
+                        </span>
+                        <span className={`status-pill status-pill--${getFulfillmentTone(row.fulfillmentStatus)}`}>
+                          {formatStatusLabel(row.fulfillmentStatus)}
+                        </span>
+                      </div>
                     </td>
-                    <td>{row.trackingSummary ?? "Pending"}</td>
                     <td>
                       <div className="flag-list">
                         {row.hasOpenIssue ? <span className="flag-chip flag-chip--danger">Issue</span> : null}
                         {row.hasNotes ? <span className="flag-chip">Note</span> : null}
-                        {!row.hasOpenIssue && !row.hasNotes ? (
+                        {row.hasChargeback ? (
+                          <span className="flag-chip flag-chip--warning">Chargeback</span>
+                        ) : null}
+                        {!row.hasOpenIssue && !row.hasNotes && !row.hasChargeback ? (
                           <span className="flag-chip flag-chip--muted">Clear</span>
                         ) : null}
                       </div>

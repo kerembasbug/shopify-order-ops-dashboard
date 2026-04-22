@@ -22,10 +22,7 @@ test("dashboard renders overview cards and the orders table", async ({ page }) =
     ),
   ).toHaveCount(0);
   await expect(page.getByRole("table")).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Sales Channel" })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Landing Page" })).toBeVisible();
-  await expect(
-    page.getByRole("columnheader", { name: "Referrer / Source" }),
-  ).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "UTM" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Source" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Flags" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Analytics" })).toBeVisible();
 });

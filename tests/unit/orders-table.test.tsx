@@ -38,6 +38,7 @@ function buildRow(overrides: Partial<OrdersTableRow> = {}): OrdersTableRow {
     trackingSummary: "Label created",
     hasOpenIssue: false,
     hasNotes: true,
+    hasChargeback: false,
     lastSyncedAt: "2026-04-01T10:00:00.000Z",
     salesChannel: "Online Store",
     landingPagePath: "/products/book-nook-kit",
@@ -50,7 +51,7 @@ function buildRow(overrides: Partial<OrdersTableRow> = {}): OrdersTableRow {
 }
 
 describe("OrdersTable", () => {
-  it("renders attribution columns with populated values", () => {
+  it("renders a condensed source summary with attribution context", () => {
     render(
       <OrdersTable
         rows={[buildRow()]}
@@ -59,30 +60,23 @@ describe("OrdersTable", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("columnheader", { name: "Sales Channel" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("columnheader", { name: "Landing Page" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("columnheader", { name: "Referrer / Source" }),
-    ).toBeTruthy();
-    expect(screen.getByRole("columnheader", { name: "UTM" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Source" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Flags" })).toBeTruthy();
 
-    const row = screen.getByText("Online Store").closest("tr");
+    const row = screen.getByText("#4101").closest("tr");
     expect(row).toBeTruthy();
 
     const rowWithin = within(row as HTMLTableRowElement);
-    expect(rowWithin.getByText("Online Store")).toBeTruthy();
-    expect(rowWithin.getByText("/products/book-nook-kit")).toBeTruthy();
-    expect(rowWithin.getByText("l.facebook.com")).toBeTruthy();
     expect(
-      rowWithin.getByText("meta / paid-social / spring-drop"),
+      rowWithin.getByText("Online Store • /products/book-nook-kit"),
     ).toBeTruthy();
+    expect(
+      rowWithin.getByText("l.facebook.com • meta / paid-social / spring-drop"),
+    ).toBeTruthy();
+    expect(rowWithin.getByText("Note")).toBeTruthy();
   });
 
-  it("renders an em dash when attribution data is missing", () => {
+  it("shows chargeback and fallback source copy when attribution data is missing", () => {
     render(
       <OrdersTable
         rows={[
@@ -97,6 +91,7 @@ describe("OrdersTable", () => {
             financialStatus: "PENDING",
             fulfillmentStatus: "FULFILLED",
             trackingSummary: "Delivered",
+            hasChargeback: true,
             lastSyncedAt: "2026-04-01T12:00:00.000Z",
             salesChannel: null,
             landingPagePath: null,
@@ -115,12 +110,9 @@ describe("OrdersTable", () => {
     expect(row).toBeTruthy();
 
     const rowWithin = within(row as HTMLTableRowElement);
-    const attributionCells = Array.from(
-      (row as HTMLTableRowElement).querySelectorAll(".orders-table__truncate"),
-      (cell) => cell.textContent?.trim(),
-    );
-
     expect(rowWithin.getByText("Grace Hopper")).toBeTruthy();
-    expect(attributionCells).toEqual(["—", "—", "—", "—"]);
+    expect(rowWithin.getByText("Direct / unattributed")).toBeTruthy();
+    expect(rowWithin.getByText("No referrer or UTM context")).toBeTruthy();
+    expect(rowWithin.getByText("Chargeback")).toBeTruthy();
   });
 });

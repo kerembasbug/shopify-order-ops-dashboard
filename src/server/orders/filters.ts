@@ -6,6 +6,7 @@ export type OrderFilters = {
   fulfillment: "all" | "fulfilled" | "unfulfilled";
   hasIssues: boolean;
   hasNotes: boolean;
+  hasChargeback: boolean;
   search: string;
   sourceSearch: string;
   dateFrom: string | null;
@@ -67,6 +68,7 @@ export function parseOrderFilters(searchParams: URLSearchParams): OrderFilters {
     fulfillment: normalizedFulfillment,
     hasIssues: searchParams.get("issues") === "true",
     hasNotes: searchParams.get("notes") === "true",
+    hasChargeback: searchParams.get("chargeback") === "true",
     search: (searchParams.get("search") ?? "").trim(),
     sourceSearch: (searchParams.get("source") ?? "").trim(),
     dateFrom: normalizedDateRange.dateFrom,

@@ -27,6 +27,7 @@ function buildFilters(overrides: Partial<OrderFilters> = {}): OrderFilters {
     fulfillment: "all",
     hasIssues: false,
     hasNotes: false,
+    hasChargeback: false,
     search: "",
     sourceSearch: "",
     dateFrom: null,
@@ -53,6 +54,17 @@ describe("FilterBar", () => {
 
     await waitFor(() =>
       expect(replaceMock).toHaveBeenCalledWith("/dashboard?source=Meta"),
+    );
+  });
+
+  it("threads the chargeback toggle into the URL", async () => {
+    render(<FilterBar stores={[]} filters={buildFilters()} />);
+
+    await userEvent.click(screen.getByLabelText("Chargeback tag"));
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+
+    await waitFor(() =>
+      expect(replaceMock).toHaveBeenCalledWith("/dashboard?chargeback=true"),
     );
   });
 

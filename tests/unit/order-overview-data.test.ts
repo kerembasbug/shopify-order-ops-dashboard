@@ -46,6 +46,62 @@ function createStoreRowsBuilder() {
   };
 }
 
+function createDailyTrendBuilder(currentBounds: string[]) {
+  return {
+    from: () => ({
+      innerJoin: () => ({
+        where: (whereClause: unknown) => {
+          const bounds = getDateBounds(whereClause);
+
+          return {
+            groupBy: () => ({
+              orderBy: () =>
+                Promise.resolve(
+                  bounds[0] === currentBounds[0] && bounds[1] === currentBounds[1]
+                    ? [
+                        {
+                          date: currentBounds[0].slice(0, 10),
+                          orderCount: 1,
+                          salesAmount: "50.00",
+                          chargebackCount: 0,
+                          currencyCodes: ["USD"],
+                        },
+                      ]
+                    : [],
+                ),
+            }),
+          };
+        },
+      }),
+    }),
+  };
+}
+
+function createStoreBreakdownBuilder() {
+  return {
+    from: () => ({
+      innerJoin: () => ({
+        where: () => ({
+          groupBy: () => ({
+            orderBy: () =>
+              Promise.resolve([
+                {
+                  storeId: 1,
+                  storeName: "Alpha Store",
+                  orderCount: 1,
+                  salesAmount: "50.00",
+                  chargebackCount: 0,
+                  fulfilledCount: 1,
+                  currencyCodes: ["USD"],
+                },
+              ]),
+          }),
+        }),
+      }),
+    }),
+  };
+}
+
 describe("order-service overview orchestration", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -206,6 +262,14 @@ describe("order-service overview orchestration", () => {
         };
       }
 
+      if (keys.includes("date")) {
+        return createDailyTrendBuilder(currentBounds);
+      }
+
+      if (keys.includes("storeId") && keys.includes("orderCount")) {
+        return createStoreBreakdownBuilder();
+      }
+
       return createStoreRowsBuilder();
     });
 
@@ -292,6 +356,14 @@ describe("order-service overview orchestration", () => {
             }),
           }),
         };
+      }
+
+      if (keys.includes("date")) {
+        return createDailyTrendBuilder(currentBounds);
+      }
+
+      if (keys.includes("storeId") && keys.includes("orderCount")) {
+        return createStoreBreakdownBuilder();
       }
 
       return createStoreRowsBuilder();

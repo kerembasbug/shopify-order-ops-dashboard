@@ -22,6 +22,7 @@ type OverviewData = {
   unfulfilledOrders: number;
   openIssuesCount: number;
   ordersWithNotesCount: number;
+  chargebackOrdersCount: number;
 };
 
 function describeComparisonRange(from: string, to: string) {
@@ -109,6 +110,12 @@ export function buildOverviewCards(overview: OverviewData): OverviewCard[] {
       value: overview.openIssuesCount.toLocaleString("en-US"),
       hint: `Open issues in ${currentRangeLabel}`,
       tone: overview.openIssuesCount > 0 ? "danger" : "default",
+    },
+    {
+      label: "Chargebacks",
+      value: (overview.chargebackOrdersCount ?? 0).toLocaleString("en-US"),
+      hint: `Chargeback-tagged orders in ${currentRangeLabel}`,
+      tone: (overview.chargebackOrdersCount ?? 0) > 0 ? "danger" : "default",
     },
   ];
 }

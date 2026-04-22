@@ -37,6 +37,7 @@ describe("OrderDetailSheet", () => {
         order={{
           id: 77,
           storeName: "DIY Robotic Arm",
+          shopifyOrderId: "gid://shopify/Order/77",
           shopifyOrderNumber: 1077,
           createdAt: "2026-04-01T12:00:00.000Z",
           updatedAt: "2026-04-01T13:00:00.000Z",
@@ -48,10 +49,17 @@ describe("OrderDetailSheet", () => {
           financialStatus: "PAID",
           fulfillmentStatus: "UNFULFILLED",
           trackingSummary: null,
+          salesChannel: "Online Store",
+          landingPagePath: "/products/robotic-arm",
+          referrerHost: "instagram.com",
+          utmSource: "meta",
+          utmMedium: "paid-social",
+          utmCampaign: "spring-launch",
           tagsJson: [],
           lastSyncedAt: "2026-04-01T13:10:00.000Z",
           storeLastSuccessfulSyncAt: "2026-04-01T13:15:00.000Z",
           fulfillments: [],
+          customerEvents: [],
           notes: [],
           issues: [
             {

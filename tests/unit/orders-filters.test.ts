@@ -30,6 +30,7 @@ describe("parseOrderFilters", () => {
     const filters = parseOrderFilters(
       new URLSearchParams({
         source: "  meta / paid social  ",
+        chargeback: "true",
         from: "2026-03-01",
         to: "2026-03-07",
       }),
@@ -37,6 +38,7 @@ describe("parseOrderFilters", () => {
 
     expect(filters).toMatchObject({
       sourceSearch: "meta / paid social",
+      hasChargeback: true,
       dateFrom: "2026-03-01",
       dateTo: "2026-03-07",
     });

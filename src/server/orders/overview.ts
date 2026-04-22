@@ -1,4 +1,5 @@
 import { eq, sql } from "drizzle-orm";
+import { ensureDatabaseCompatibility } from "@/db/compatibility";
 import { db } from "@/db";
 import { orderIssues, orderNotes, orders, overviewSnapshots } from "@/db/schema";
 
@@ -27,6 +28,8 @@ export type RefreshOverviewSnapshotDeps = {
 export async function loadOverviewMetrics(
   storeId: number,
 ): Promise<OverviewMetrics> {
+  await ensureDatabaseCompatibility();
+
   const [aggregate] = await db
     .select({
       totalOrders: sql<number>`count(*)::int`,
@@ -96,6 +99,8 @@ export async function refreshOverviewSnapshot(
   storeId: number,
   deps: RefreshOverviewSnapshotDeps = defaultRefreshOverviewSnapshotDeps,
 ) {
+  await ensureDatabaseCompatibility();
+
   const metrics = await deps.loadOverviewMetrics(storeId);
   const snapshot: OverviewSnapshotRecord = {
     storeId,

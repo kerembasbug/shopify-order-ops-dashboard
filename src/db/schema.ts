@@ -123,6 +123,25 @@ export const orderNotes = pgTable("order_notes", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const orderCustomerEvents = pgTable("order_customer_events", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  source: text("source").default("mcp").notNull(),
+  eventType: text("event_type").default("customer_message").notNull(),
+  direction: text("direction").default("inbound").notNull(),
+  channel: text("channel"),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  metadataJson: jsonb("metadata_json")
+    .$type<Record<string, unknown>>()
+    .default(sql`'{}'::jsonb`)
+    .notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const orderIssues = pgTable("order_issues", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   orderId: integer("order_id")

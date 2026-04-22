@@ -5,10 +5,13 @@ import {
   formatDate,
   formatDateTime,
   formatList,
+  formatLandingPageLabel,
   formatStatusLabel,
+  formatUtmSummary,
   removeQueryParam,
 } from "@/components/dashboard/dashboard-utils";
 import { NoteComposer } from "@/components/dashboard/note-composer";
+import { hasChargebackTag } from "@/server/orders/chargeback";
 
 type FulfillmentDetail = {
   id: number;
@@ -38,9 +41,22 @@ type IssueDetail = {
   resolvedAt: Date | string | null;
 };
 
+type CustomerEventDetail = {
+  id: number;
+  source: string;
+  eventType: string;
+  direction: string;
+  channel: string | null;
+  title: string;
+  body: string;
+  occurredAt: Date | string;
+  createdAt: Date | string;
+};
+
 type OrderDetail = {
   id: number;
   storeName: string;
+  shopifyOrderId: string;
   shopifyOrderNumber: number;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -52,12 +68,19 @@ type OrderDetail = {
   financialStatus: string | null;
   fulfillmentStatus: string | null;
   trackingSummary: string | null;
+  salesChannel?: string | null;
+  landingPagePath?: string | null;
+  referrerHost?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
   tagsJson: string[];
   lastSyncedAt: Date | string | null;
   storeLastSuccessfulSyncAt: Date | string | null;
   fulfillments: FulfillmentDetail[];
   notes: NoteDetail[];
   issues: IssueDetail[];
+  customerEvents: CustomerEventDetail[];
 };
 
 type OrderDetailSheetProps = {
@@ -105,6 +128,12 @@ export function OrderDetailSheet({
   }
 
   const tags = normalizeTags(order.tagsJson);
+  const chargebackTracked = hasChargebackTag(tags);
+  const attributionSummary = formatUtmSummary(
+    order.utmSource,
+    order.utmMedium,
+    order.utmCampaign,
+  );
 
   return (
     <aside className="detail-sheet">
@@ -155,6 +184,10 @@ export function OrderDetailSheet({
             <dd>{formatList(tags)}</dd>
           </div>
           <div>
+            <dt>Shopify ID</dt>
+            <dd>{order.shopifyOrderId}</dd>
+          </div>
+          <div>
             <dt>Created</dt>
             <dd>{formatDateTime(order.createdAt)}</dd>
           </div>
@@ -171,6 +204,69 @@ export function OrderDetailSheet({
             <dd>{formatDateTime(order.storeLastSuccessfulSyncAt)}</dd>
           </div>
         </dl>
+
+        {chargebackTracked ? (
+          <div className="detail-sheet__callout detail-sheet__callout--warning" role="note">
+            <strong>Chargeback tag is active.</strong> Keep this order in the dispute watchlist and
+            verify all customer contact history before refund or fulfillment actions.
+          </div>
+        ) : null}
+      </section>
+
+      <section className="detail-sheet__section">
+        <div className="detail-sheet__section-heading">
+          <h3>Attribution</h3>
+          <p>Source context</p>
+        </div>
+        <dl className="detail-sheet__meta">
+          <div>
+            <dt>Sales channel</dt>
+            <dd>{order.salesChannel ? formatStatusLabel(order.salesChannel) : "Direct / unknown"}</dd>
+          </div>
+          <div>
+            <dt>Landing page</dt>
+            <dd>{formatLandingPageLabel(order.landingPagePath) || "—"}</dd>
+          </div>
+          <div>
+            <dt>Referrer</dt>
+            <dd>{order.referrerHost ?? "—"}</dd>
+          </div>
+          <div>
+            <dt>UTM</dt>
+            <dd>{attributionSummary || "—"}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="detail-sheet__section">
+        <div className="detail-sheet__section-heading">
+          <h3>Customer timeline</h3>
+          <p>{order.customerEvents.length} item(s)</p>
+        </div>
+        <div className="detail-sheet__callout" role="note">
+          <strong>MCP-ready.</strong> External automation can write customer messages, follow-up
+          context, and support metadata into this timeline.
+        </div>
+        {order.customerEvents.length === 0 ? (
+          <p className="detail-sheet__empty-copy">No customer messages or external context yet.</p>
+        ) : (
+          <ul className="detail-sheet__list">
+            {order.customerEvents.map((event) => (
+              <li key={event.id}>
+                <div className="detail-sheet__list-heading">
+                  <strong>{event.title}</strong>
+                  <span>{formatDateTime(event.occurredAt)}</span>
+                </div>
+                <p>
+                  {formatStatusLabel(event.direction)} • {formatStatusLabel(event.eventType)} •{" "}
+                  {event.channel ? formatStatusLabel(event.channel) : "Channel unspecified"} • Source{" "}
+                  {event.source}
+                </p>
+                <p>{event.body}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="detail-sheet__section">

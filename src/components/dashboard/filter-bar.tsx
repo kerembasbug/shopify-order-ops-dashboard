@@ -17,6 +17,50 @@ type FilterBarProps = {
   filters: OrderFilters;
 };
 
+type DatePreset = "today" | "last7" | "last30" | "month";
+
+function formatUtcDateInput(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function shiftUtcDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function getDateRangeForPreset(preset: DatePreset) {
+  const today = new Date();
+  const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+  if (preset === "today") {
+    const formatted = formatUtcDateInput(end);
+    return {
+      from: formatted,
+      to: formatted,
+    };
+  }
+
+  if (preset === "last7") {
+    return {
+      from: formatUtcDateInput(shiftUtcDays(end, -6)),
+      to: formatUtcDateInput(end),
+    };
+  }
+
+  if (preset === "month") {
+    return {
+      from: formatUtcDateInput(new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1))),
+      to: formatUtcDateInput(end),
+    };
+  }
+
+  return {
+    from: formatUtcDateInput(shiftUtcDays(end, -29)),
+    to: formatUtcDateInput(end),
+  };
+}
+
 export function FilterBar({ stores, filters }: FilterBarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -29,6 +73,7 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
   const [dateTo, setDateTo] = useState(filters.dateTo ?? "");
   const [hasIssues, setHasIssues] = useState(filters.hasIssues);
   const [hasNotes, setHasNotes] = useState(filters.hasNotes);
+  const [hasChargeback, setHasChargeback] = useState(filters.hasChargeback);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isApplying, startApplyTransition] = useTransition();
@@ -42,9 +87,11 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     setDateTo(filters.dateTo ?? "");
     setHasIssues(filters.hasIssues);
     setHasNotes(filters.hasNotes);
+    setHasChargeback(filters.hasChargeback);
   }, [
     filters.dateFrom,
     filters.dateTo,
+    filters.hasChargeback,
     filters.fulfillment,
     filters.hasIssues,
     filters.hasNotes,
@@ -53,20 +100,47 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     filters.storeId,
   ]);
 
-  function handleApply(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function buildNextHref(overrides?: Partial<{
+    storeId: string;
+    fulfillment: OrderFilters["fulfillment"];
+    search: string;
+    sourceSearch: string;
+    dateFrom: string;
+    dateTo: string;
+    hasIssues: boolean;
+    hasNotes: boolean;
+    hasChargeback: boolean;
+  }>) {
+    const nextState = {
+      storeId,
+      fulfillment,
+      search,
+      sourceSearch,
+      dateFrom,
+      dateTo,
+      hasIssues,
+      hasNotes,
+      hasChargeback,
+      ...overrides,
+    };
 
-    const nextHref = buildPathWithParams(pathname, searchParams.toString(), {
-      store: storeId || null,
-      fulfillment: fulfillment === "all" ? null : fulfillment,
-      search: search || null,
-      source: sourceSearch || null,
-      from: dateFrom || null,
-      to: dateTo || null,
-      issues: hasIssues ? "true" : null,
-      notes: hasNotes ? "true" : null,
+    return buildPathWithParams(pathname, searchParams.toString(), {
+      store: nextState.storeId || null,
+      fulfillment: nextState.fulfillment === "all" ? null : nextState.fulfillment,
+      search: nextState.search || null,
+      source: nextState.sourceSearch || null,
+      from: nextState.dateFrom || null,
+      to: nextState.dateTo || null,
+      issues: nextState.hasIssues ? "true" : null,
+      notes: nextState.hasNotes ? "true" : null,
+      chargeback: nextState.hasChargeback ? "true" : null,
       orderId: null,
     });
+  }
+
+  function handleApply(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextHref = buildNextHref();
 
     startApplyTransition(() => {
       router.replace(nextHref);
@@ -82,10 +156,26 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     setDateTo("");
     setHasIssues(false);
     setHasNotes(false);
+    setHasChargeback(false);
     setRefreshError(null);
 
     startApplyTransition(() => {
       router.replace(pathname);
+    });
+  }
+
+  function handlePresetClick(preset: DatePreset) {
+    const range = getDateRangeForPreset(preset);
+    setDateFrom(range.from);
+    setDateTo(range.to);
+
+    startApplyTransition(() => {
+      router.replace(
+        buildNextHref({
+          dateFrom: range.from,
+          dateTo: range.to,
+        }),
+      );
     });
   }
 
@@ -121,9 +211,24 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     <section className="panel panel--filters">
       <div className="panel__header">
         <div>
-          <p className="panel__eyebrow">Command bar</p>
-          <h2 className="panel__title">Filter the order stream</h2>
+          <p className="panel__eyebrow">Controls</p>
+          <h2 className="panel__title">Orders, date range, and store scope</h2>
         </div>
+      </div>
+
+      <div className="filter-bar__presets" role="group" aria-label="Quick date ranges">
+        <button className="button button--ghost" type="button" onClick={() => handlePresetClick("today")}>
+          Today
+        </button>
+        <button className="button button--ghost" type="button" onClick={() => handlePresetClick("last7")}>
+          Last 7 days
+        </button>
+        <button className="button button--ghost" type="button" onClick={() => handlePresetClick("last30")}>
+          Last 30 days
+        </button>
+        <button className="button button--ghost" type="button" onClick={() => handlePresetClick("month")}>
+          This month
+        </button>
       </div>
 
       <form className="filter-bar" onSubmit={handleApply}>
@@ -204,6 +309,15 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
             onChange={(event) => setHasNotes(event.target.checked)}
           />
           <span>Notes only</span>
+        </label>
+
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={hasChargeback}
+            onChange={(event) => setHasChargeback(event.target.checked)}
+          />
+          <span>Chargeback tag</span>
         </label>
 
         <div className="filter-bar__actions">

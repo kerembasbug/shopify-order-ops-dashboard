@@ -1,7 +1,9 @@
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { ensureDatabaseCompatibility } from "@/db/compatibility";
 import { db } from "@/db";
 import {
   orderFulfillments,
+  orderCustomerEvents,
   orderIssues,
   orderNotes,
   orders,
@@ -9,6 +11,7 @@ import {
   syncRuns,
 } from "@/db/schema";
 import { getEnv } from "@/server/env";
+import { getChargebackTagExistsSql } from "@/server/orders/chargeback";
 import { listIssuesForOrder } from "@/server/issues/issue-service";
 import { listNotesForOrder } from "@/server/notes/note-service";
 import {
@@ -45,7 +48,31 @@ type OverviewSummary = {
   unfulfilledOrders: number;
   openIssuesCount: number;
   ordersWithNotesCount: number;
+  chargebackOrdersCount: number;
   currencyCodes: string[];
+};
+
+type DailyTrendPoint = {
+  date: string;
+  totalOrders: number;
+  totalSalesAmount: string;
+  chargebackOrdersCount: number;
+  currencyCodes: string[];
+};
+
+type StorePerformancePoint = {
+  storeId: number;
+  storeName: string;
+  totalOrders: number;
+  totalSalesAmount: string;
+  chargebackOrdersCount: number;
+  fulfilledOrders: number;
+  currencyCodes: string[];
+};
+
+type DashboardAnalytics = {
+  dailyTrend: DailyTrendPoint[];
+  storeBreakdown: StorePerformancePoint[];
 };
 
 function buildNormalizedDateSearchParams(searchParams: URLSearchParams) {
@@ -98,6 +125,35 @@ function getHasNotesExistsSql() {
     from ${orderNotes}
     where ${orderNotes.orderId} = ${orders.id}
   )`;
+}
+
+function formatUtcDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function buildDailyTrendSeed(dateRange: DateRangeInput) {
+  const createdAfter = buildDateFrom(dateRange.dateFrom);
+  const createdBefore = buildDateTo(dateRange.dateTo);
+
+  if (!createdAfter || !createdBefore) {
+    return [];
+  }
+
+  const points: DailyTrendPoint[] = [];
+  const cursor = new Date(createdAfter);
+
+  while (cursor <= createdBefore) {
+    points.push({
+      date: formatUtcDate(cursor),
+      totalOrders: 0,
+      totalSalesAmount: "0",
+      chargebackOrdersCount: 0,
+      currencyCodes: [],
+    });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return points;
 }
 
 function buildSearchCondition(search: string) {
@@ -170,6 +226,7 @@ function buildOrderWhereClause(
 ) {
   const openIssueExists = getOpenIssueExistsSql();
   const hasNotesExists = getHasNotesExistsSql();
+  const hasChargebackTag = getChargebackTagExistsSql();
   const createdAfter = buildDateFrom(dateRange.dateFrom);
   const createdBefore = buildDateTo(dateRange.dateTo);
 
@@ -183,6 +240,7 @@ function buildOrderWhereClause(
       : undefined,
     filters.hasIssues ? openIssueExists : undefined,
     filters.hasNotes ? hasNotesExists : undefined,
+    filters.hasChargeback ? hasChargebackTag : undefined,
     buildSearchCondition(filters.search),
     buildSourceSearchCondition(filters.sourceSearch),
     createdAfter ? gte(orders.createdAt, createdAfter) : undefined,
@@ -196,6 +254,7 @@ async function loadOverviewSummary(
 ): Promise<OverviewSummary> {
   const hasOpenIssue = getOpenIssueExistsSql();
   const hasNotes = getHasNotesExistsSql();
+  const hasChargebackTag = getChargebackTagExistsSql();
   const whereClause = buildOrderWhereClause(filters, dateRange);
 
   const query = db
@@ -211,6 +270,9 @@ async function loadOverviewSummary(
       )::int`,
       ordersWithNotesCount: sql<number>`count(
         distinct case when ${hasNotes} then ${orders.id} else null end
+      )::int`,
+      chargebackOrdersCount: sql<number>`count(
+        distinct case when ${hasChargebackTag} then ${orders.id} else null end
       )::int`,
       currencyCodes: sql<string[]>`coalesce(
         array_agg(distinct ${orders.currencyCode}) filter (
@@ -231,7 +293,112 @@ async function loadOverviewSummary(
     unfulfilledOrders: summary?.unfulfilledOrders ?? 0,
     openIssuesCount: summary?.openIssuesCount ?? 0,
     ordersWithNotesCount: summary?.ordersWithNotesCount ?? 0,
+    chargebackOrdersCount: summary?.chargebackOrdersCount ?? 0,
     currencyCodes: summary?.currencyCodes ?? [],
+  };
+}
+
+async function loadDailyTrend(
+  filters: ReturnType<typeof parseOrderFilters>,
+  dateRange: DateRangeInput,
+): Promise<DailyTrendPoint[]> {
+  const hasChargebackTag = getChargebackTagExistsSql();
+  const whereClause = buildOrderWhereClause(filters, dateRange);
+  const dayBucket = sql<string>`to_char(date_trunc('day', ${orders.createdAt}), 'YYYY-MM-DD')`;
+
+  const query = db
+    .select({
+      date: dayBucket,
+      orderCount: sql<number>`count(*)::int`,
+      salesAmount: sql<string>`coalesce(sum(${orders.totalPrice}), 0)::text`,
+      chargebackCount: sql<number>`count(
+        distinct case when ${hasChargebackTag} then ${orders.id} else null end
+      )::int`,
+      currencyCodes: sql<string[]>`coalesce(
+        array_agg(distinct ${orders.currencyCode}) filter (
+          where ${orders.currencyCode} is not null
+        ),
+        '{}'::text[]
+      )`,
+    })
+    .from(orders)
+    .innerJoin(stores, eq(stores.id, orders.storeId));
+
+  const rows = await (whereClause ? query.where(whereClause) : query)
+    .groupBy(dayBucket)
+    .orderBy(dayBucket);
+  const seededTrend = new Map(
+    buildDailyTrendSeed(dateRange).map((point) => [point.date, point] as const),
+  );
+
+  for (const row of rows) {
+    seededTrend.set(row.date, {
+      date: row.date,
+      totalOrders: row.orderCount,
+      totalSalesAmount: row.salesAmount,
+      chargebackOrdersCount: row.chargebackCount,
+      currencyCodes: row.currencyCodes,
+    });
+  }
+
+  return Array.from(seededTrend.values());
+}
+
+async function loadStoreBreakdown(
+  filters: ReturnType<typeof parseOrderFilters>,
+  dateRange: DateRangeInput,
+): Promise<StorePerformancePoint[]> {
+  const hasChargebackTag = getChargebackTagExistsSql();
+  const whereClause = buildOrderWhereClause(filters, dateRange);
+  const totalSalesAmountSql = sql<number>`coalesce(sum(${orders.totalPrice}), 0)`;
+
+  const query = db
+    .select({
+      storeId: stores.id,
+      storeName: stores.name,
+      orderCount: sql<number>`count(*)::int`,
+      salesAmount: sql<string>`${totalSalesAmountSql}::text`,
+      chargebackCount: sql<number>`count(
+        distinct case when ${hasChargebackTag} then ${orders.id} else null end
+      )::int`,
+      fulfilledCount: sql<number>`count(*) filter (where ${orders.fulfillmentStatus} = 'FULFILLED')::int`,
+      currencyCodes: sql<string[]>`coalesce(
+        array_agg(distinct ${orders.currencyCode}) filter (
+          where ${orders.currencyCode} is not null
+        ),
+        '{}'::text[]
+      )`,
+    })
+    .from(orders)
+    .innerJoin(stores, eq(stores.id, orders.storeId));
+
+  const rows = await (whereClause ? query.where(whereClause) : query)
+    .groupBy(stores.id, stores.name)
+    .orderBy(desc(totalSalesAmountSql), stores.name);
+
+  return rows.map((row) => ({
+    storeId: row.storeId,
+    storeName: row.storeName,
+    totalOrders: row.orderCount,
+    totalSalesAmount: row.salesAmount,
+    chargebackOrdersCount: row.chargebackCount,
+    fulfilledOrders: row.fulfilledCount,
+    currencyCodes: row.currencyCodes,
+  }));
+}
+
+async function loadDashboardAnalytics(
+  filters: ReturnType<typeof parseOrderFilters>,
+  dateRange: DateRangeInput,
+): Promise<DashboardAnalytics> {
+  const [dailyTrend, storeBreakdown] = await Promise.all([
+    loadDailyTrend(filters, dateRange),
+    loadStoreBreakdown(filters, dateRange),
+  ]);
+
+  return {
+    dailyTrend,
+    storeBreakdown,
   };
 }
 
@@ -316,6 +483,8 @@ export function createSyncRepo() {
     },
 
     async upsertMappedOrder(storeId: number | string, mapped: MappedShopifyOrder) {
+      await ensureDatabaseCompatibility();
+
       await db.transaction(async (transaction) => {
         const syncTimestamp = new Date();
         const [savedOrder] = await transaction
@@ -433,9 +602,12 @@ export function createSyncRepo() {
 }
 
 export async function listOrders(searchParams: URLSearchParams) {
+  await ensureDatabaseCompatibility();
+
   const filters = parseOrderFilters(searchParams);
   const hasOpenIssue = getOpenIssueExistsSql();
   const hasNotes = getHasNotesExistsSql();
+  const hasChargebackTag = getChargebackTagExistsSql();
   const whereClause = buildOrderWhereClause(filters);
 
   const query = db
@@ -462,6 +634,7 @@ export async function listOrders(searchParams: URLSearchParams) {
       utmCampaign: orders.utmCampaign,
       hasOpenIssue,
       hasNotes,
+      hasChargeback: hasChargebackTag,
       lastSyncedAt: orders.lastSyncedAt,
     })
     .from(orders)
@@ -473,9 +646,11 @@ export async function listOrders(searchParams: URLSearchParams) {
 }
 
 export async function getOverviewData(searchParams: URLSearchParams) {
+  await ensureDatabaseCompatibility();
+
   const filters = parseOrderFilters(searchParams);
   const comparisonRange = resolveComparisonRange(filters);
-  const [currentSummary, previousSummary] = await Promise.all([
+  const [currentSummary, previousSummary, analytics] = await Promise.all([
     loadOverviewSummary(filters, {
       dateFrom: comparisonRange.currentFrom,
       dateTo: comparisonRange.currentTo,
@@ -483,6 +658,10 @@ export async function getOverviewData(searchParams: URLSearchParams) {
     loadOverviewSummary(filters, {
       dateFrom: comparisonRange.previousFrom,
       dateTo: comparisonRange.previousTo,
+    }),
+    loadDashboardAnalytics(filters, {
+      dateFrom: comparisonRange.currentFrom,
+      dateTo: comparisonRange.currentTo,
     }),
   ]);
   const delta = isCurrencySafeDelta(
@@ -516,10 +695,14 @@ export async function getOverviewData(searchParams: URLSearchParams) {
     unfulfilledOrders: currentSummary.unfulfilledOrders,
     openIssuesCount: currentSummary.openIssuesCount,
     ordersWithNotesCount: currentSummary.ordersWithNotesCount,
+    chargebackOrdersCount: currentSummary.chargebackOrdersCount,
+    analytics,
   };
 }
 
 export async function getDashboardPageData(searchParams: URLSearchParams) {
+  await ensureDatabaseCompatibility();
+
   const normalizedSearchParams = buildNormalizedDateSearchParams(searchParams);
   const [overview, orderRows, storeRows] = await Promise.all([
     getOverviewData(normalizedSearchParams),
@@ -544,6 +727,8 @@ export async function getDashboardPageData(searchParams: URLSearchParams) {
 }
 
 export async function getOrderDetail(orderId: number) {
+  await ensureDatabaseCompatibility();
+
   const [orderRow] = await db
     .select({
       id: orders.id,
@@ -561,6 +746,12 @@ export async function getOrderDetail(orderId: number) {
       financialStatus: orders.financialStatus,
       fulfillmentStatus: orders.fulfillmentStatus,
       trackingSummary: orders.trackingSummary,
+      salesChannel: orders.salesChannel,
+      landingPagePath: orders.landingPagePath,
+      referrerHost: orders.referrerHost,
+      utmSource: orders.utmSource,
+      utmMedium: orders.utmMedium,
+      utmCampaign: orders.utmCampaign,
       tagsJson: orders.tagsJson,
       lastSyncedAt: orders.lastSyncedAt,
       storeLastSuccessfulSyncAt: stores.lastSuccessfulSyncAt,
@@ -574,7 +765,7 @@ export async function getOrderDetail(orderId: number) {
     return null;
   }
 
-  const [fulfillments, notes, issues] = await Promise.all([
+  const [fulfillments, notes, issues, customerEvents] = await Promise.all([
     db
       .select()
       .from(orderFulfillments)
@@ -582,6 +773,11 @@ export async function getOrderDetail(orderId: number) {
       .orderBy(desc(orderFulfillments.fulfilledAt)),
     listNotesForOrder(orderId),
     listIssuesForOrder(orderId),
+    db
+      .select()
+      .from(orderCustomerEvents)
+      .where(eq(orderCustomerEvents.orderId, orderId))
+      .orderBy(desc(orderCustomerEvents.occurredAt), desc(orderCustomerEvents.createdAt)),
   ]);
 
   return {
@@ -589,10 +785,13 @@ export async function getOrderDetail(orderId: number) {
     fulfillments,
     notes,
     issues,
+    customerEvents,
   };
 }
 
 export async function listSyncRuns(limit = 20) {
+  await ensureDatabaseCompatibility();
+
   const statusPriority = sql<number>`case
     when ${syncRuns.status} = 'running' then 0
     when ${syncRuns.status} = 'failed' then 1
