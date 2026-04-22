@@ -1,81 +1,66 @@
 "use client";
 
-import React, { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 type NoteComposerProps = {
   orderId: number;
 };
 
 export function NoteComposer({ orderId }: NoteComposerProps) {
-  const router = useRouter();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    const trimmedBody = body.trim();
-
-    if (!trimmedBody) {
-      setError("Enter a note before saving.");
-      return;
-    }
-
     setError(null);
-    setIsSaving(true);
+    setSuccess(false);
 
-    try {
-      const response = await fetch(`/api/orders/${orderId}/notes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ body: trimmedBody }),
-      });
-
-      if (!response.ok) {
-        throw new Error("save_failed");
-      }
-
-      setBody("");
-      router.refresh();
-    } catch {
-      setError("Unable to save this note right now.");
-    } finally {
-      setIsSaving(false);
-    }
+    startTransition(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/orders/notes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, body }),
+          });
+          if (!res.ok) throw new Error("Failed to save note");
+          setBody("");
+          setSuccess(true);
+          setTimeout(() => setSuccess(false), 3000);
+          window.location.reload();
+        } catch {
+          setError("Could not save the note. Please try again.");
+        }
+      })();
+    });
   }
 
   return (
-    <form className="note-composer" onSubmit={handleSubmit}>
-      <label className="field note-composer__field">
-        <span>Add note</span>
-        <textarea
-          aria-label="Add note"
-          className="note-composer__input"
-          name="body"
-          rows={4}
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          placeholder="Share the latest operator context for this order."
-          disabled={isSaving}
-        />
-      </label>
-
-      <div className="note-composer__actions">
-        <button className="button button--accent" type="submit" disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save note"}
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "12px" }}>
+      <textarea
+        className="textarea"
+        placeholder="Add an operator note…"
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        required
+        minLength={1}
+        style={{ width: "100%", minHeight: "80px" }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
+        {error && <p style={{ margin: 0, fontSize: "12px", color: "var(--accent-coral)" }}>{error}</p>}
+        {success && <p style={{ margin: 0, fontSize: "12px", color: "var(--accent-teal)" }}>Note saved.</p>}
+        {!error && !success && <span />}
+        <button
+          className="button button--primary"
+          type="submit"
+          disabled={isPending || !body.trim()}
+          style={{ height: 36, padding: "0 14px", fontSize: "13px" }}
+        >
+          {isPending ? "Saving…" : "Save note"}
         </button>
-        <p className="note-composer__hint">Notes are visible in the order timeline after refresh.</p>
       </div>
-
-      {error ? (
-        <p aria-live="polite" className="panel__error">
-          {error}
-        </p>
-      ) : null}
     </form>
   );
 }

@@ -15,6 +15,7 @@ type StoreOption = {
 type FilterBarProps = {
   stores: StoreOption[];
   filters: OrderFilters;
+  basePath?: string;
 };
 
 type DatePreset = "today" | "last7" | "last30" | "month";
@@ -43,37 +44,25 @@ function shiftUtcDays(value: Date, days: number) {
 function getDateRangeForPreset(preset: DatePreset) {
   const today = new Date();
   const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-
   if (preset === "today") {
     const formatted = formatUtcDateInput(end);
-    return {
-      from: formatted,
-      to: formatted,
-    };
+    return { from: formatted, to: formatted };
   }
-
   if (preset === "last7") {
-    return {
-      from: formatUtcDateInput(shiftUtcDays(end, -6)),
-      to: formatUtcDateInput(end),
-    };
+    return { from: formatUtcDateInput(shiftUtcDays(end, -6)), to: formatUtcDateInput(end) };
   }
-
   if (preset === "month") {
     return {
       from: formatUtcDateInput(new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1))),
       to: formatUtcDateInput(end),
     };
   }
-
-  return {
-    from: formatUtcDateInput(shiftUtcDays(end, -29)),
-    to: formatUtcDateInput(end),
-  };
+  return { from: formatUtcDateInput(shiftUtcDays(end, -29)), to: formatUtcDateInput(end) };
 }
 
-export function FilterBar({ stores, filters }: FilterBarProps) {
+export function FilterBar({ stores, filters, basePath }: FilterBarProps) {
   const pathname = usePathname();
+  const effectivePath = basePath ?? pathname;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [storeId, setStoreId] = useState(filters.storeId ? String(filters.storeId) : "");
@@ -87,9 +76,7 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
   const [hasChargeback, setHasChargeback] = useState(filters.hasChargeback);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(() =>
-    hasAdvancedFiltersActive(filters),
-  );
+  const [showAdvanced, setShowAdvanced] = useState(() => hasAdvancedFiltersActive(filters));
   const [isApplying, startApplyTransition] = useTransition();
 
   useEffect(() => {
@@ -102,118 +89,56 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
     setHasIssues(filters.hasIssues);
     setHasNotes(filters.hasNotes);
     setHasChargeback(filters.hasChargeback);
-    setShowAdvancedFilters(hasAdvancedFiltersActive(filters));
+    setShowAdvanced(hasAdvancedFiltersActive(filters));
   }, [
-    filters.dateFrom,
-    filters.dateTo,
-    filters.hasChargeback,
-    filters.fulfillment,
-    filters.hasIssues,
-    filters.hasNotes,
-    filters.search,
-    filters.sourceSearch,
-    filters.storeId,
+    filters.dateFrom, filters.dateTo, filters.hasChargeback, filters.fulfillment,
+    filters.hasIssues, filters.hasNotes, filters.search, filters.sourceSearch, filters.storeId,
   ]);
 
-  function buildNextHref(overrides?: Partial<{
-    storeId: string;
-    fulfillment: OrderFilters["fulfillment"];
-    search: string;
-    sourceSearch: string;
-    dateFrom: string;
-    dateTo: string;
-    hasIssues: boolean;
-    hasNotes: boolean;
-    hasChargeback: boolean;
-  }>) {
-    const nextState = {
-      storeId,
-      fulfillment,
-      search,
-      sourceSearch,
-      dateFrom,
-      dateTo,
-      hasIssues,
-      hasNotes,
-      hasChargeback,
-      ...overrides,
-    };
-
-    return buildPathWithParams(pathname, searchParams.toString(), {
-      store: nextState.storeId || null,
-      fulfillment: nextState.fulfillment === "all" ? null : nextState.fulfillment,
-      search: nextState.search || null,
-      source: nextState.sourceSearch || null,
-      from: nextState.dateFrom || null,
-      to: nextState.dateTo || null,
-      issues: nextState.hasIssues ? "true" : null,
-      notes: nextState.hasNotes ? "true" : null,
-      chargeback: nextState.hasChargeback ? "true" : null,
+  function buildNextHref(overrides?: Partial<typeof filters & { storeId: string }>) {
+    const next = { storeId, fulfillment, search, sourceSearch, dateFrom, dateTo, hasIssues, hasNotes, hasChargeback, ...overrides };
+    return buildPathWithParams(effectivePath, searchParams.toString(), {
+      store: next.storeId || null,
+      fulfillment: next.fulfillment === "all" ? null : next.fulfillment,
+      search: next.search || null,
+      source: next.sourceSearch || null,
+      from: next.dateFrom || null,
+      to: next.dateTo || null,
+      issues: next.hasIssues ? "true" : null,
+      notes: next.hasNotes ? "true" : null,
+      chargeback: next.hasChargeback ? "true" : null,
       orderId: null,
     });
   }
 
   function handleApply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextHref = buildNextHref();
-
-    startApplyTransition(() => {
-      router.replace(nextHref);
-    });
+    startApplyTransition(() => { router.replace(buildNextHref()); });
   }
 
   function handleClear() {
-    setStoreId("");
-    setFulfillment("all");
-    setSearch("");
-    setSourceSearch("");
-    setDateFrom("");
-    setDateTo("");
-    setHasIssues(false);
-    setHasNotes(false);
-    setHasChargeback(false);
+    setStoreId(""); setFulfillment("all"); setSearch(""); setSourceSearch("");
+    setDateFrom(""); setDateTo(""); setHasIssues(false); setHasNotes(false); setHasChargeback(false);
     setRefreshError(null);
-
-    startApplyTransition(() => {
-      router.replace(pathname);
-    });
+    startApplyTransition(() => { router.replace(effectivePath); });
   }
 
   function handlePresetClick(preset: DatePreset) {
     const range = getDateRangeForPreset(preset);
-    setDateFrom(range.from);
-    setDateTo(range.to);
-
+    setDateFrom(range.from); setDateTo(range.to);
     startApplyTransition(() => {
-      router.replace(
-        buildNextHref({
-          dateFrom: range.from,
-          dateTo: range.to,
-        }),
-      );
+      router.replace(buildNextHref({ dateFrom: range.from, dateTo: range.to }));
     });
   }
 
   async function handleRefresh() {
-    setRefreshError(null);
-    setIsRefreshing(true);
-
+    setRefreshError(null); setIsRefreshing(true);
     try {
-      const parsedStoreId = filters.storeId;
-      const response = await fetch("/api/sync/run", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(
-          Number.isFinite(parsedStoreId) ? { storeId: parsedStoreId } : {},
-        ),
+      const res = await fetch("/api/sync/run", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Number.isFinite(filters.storeId) ? { storeId: filters.storeId } : {}),
       });
-
-      if (!response.ok) {
-        throw new Error("Refresh failed");
-      }
-
+      if (!res.ok) throw new Error();
       router.refresh();
     } catch {
       setRefreshError("Unable to queue a refresh right now.");
@@ -223,165 +148,148 @@ export function FilterBar({ stores, filters }: FilterBarProps) {
   }
 
   return (
-    <section className="panel panel--filters">
-      <div className="panel__header">
-        <div>
-          <p className="panel__eyebrow">Controls</p>
-          <h2 className="panel__title">Store scope and refresh</h2>
-        </div>
-      </div>
-
-      <form className="filter-bar filter-bar--minimal" onSubmit={handleApply}>
-        <div className="filter-bar__primary">
-          <label className="field field--compact">
+    <div className="panel" style={{ marginBottom: "20px" }}>
+      <form onSubmit={handleApply}>
+        {/* Primary controls */}
+        <div style={{ display: "grid", gridTemplateColumns: "160px 1fr auto auto auto auto", gap: "10px", alignItems: "end" }}>
+          {/* Store */}
+          <label className="field">
             <span>Store</span>
-            <select value={storeId} onChange={(event) => setStoreId(event.target.value)}>
+            <select className="select" value={storeId} onChange={(e) => setStoreId(e.target.value)}>
               <option value="">All stores</option>
-              {stores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                  {store.status !== "active" ? " (inactive)" : ""}
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}{s.status !== "active" ? " (inactive)" : ""}
                 </option>
               ))}
             </select>
           </label>
 
-          <label className="field field--search-inline">
+          {/* Search */}
+          <label className="field">
             <span>Search</span>
             <input
-              aria-label="Search orders"
+              className="input"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Order, customer, email"
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Order #, customer, email…"
             />
           </label>
 
-          <div className="filter-bar__preset-stack">
-            <span className="filter-bar__mini-label">Date range</span>
-            <div className="filter-bar__presets" role="group" aria-label="Quick date ranges">
-              <button className="button button--ghost" type="button" onClick={() => handlePresetClick("today")}>
-                Today
-              </button>
-              <button className="button button--ghost" type="button" onClick={() => handlePresetClick("last7")}>
-                Last 7 days
-              </button>
-              <button className="button button--ghost" type="button" onClick={() => handlePresetClick("last30")}>
-                Last 30 days
-              </button>
-              <button className="button button--ghost" type="button" onClick={() => handlePresetClick("month")}>
-                This month
-              </button>
+          {/* Date presets */}
+          <div className="field">
+            <span>Period</span>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {(["today", "last7", "last30", "month"] as DatePreset[]).map((p) => (
+                <button key={p} className="button button--ghost" type="button" onClick={() => handlePresetClick(p)}
+                  style={{ height: 40, padding: "0 10px", fontSize: "12px" }}>
+                  {p === "today" ? "Today" : p === "last7" ? "7d" : p === "last30" ? "30d" : "Month"}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="filter-bar__actions filter-bar__actions--primary">
+          {/* Advanced toggle */}
+          <div className="field">
+            <span>&nbsp;</span>
             <button
               className="button button--ghost"
               type="button"
-              aria-expanded={showAdvancedFilters}
-              aria-controls="advanced-filters"
-              onClick={() => setShowAdvancedFilters((current) => !current)}
+              onClick={() => setShowAdvanced((v) => !v)}
+              aria-expanded={showAdvanced}
+              style={{ height: 40 }}
             >
-              {showAdvancedFilters ? "Hide filters" : "More filters"}
+              {showAdvanced ? "Less" : "Filters"}
             </button>
-            <button className="button button--ghost" type="button" onClick={handleClear}>
-              Clear
+          </div>
+
+          {/* Apply */}
+          <div className="field">
+            <span>&nbsp;</span>
+            <button className="button button--ghost" type="submit" disabled={isApplying} style={{ height: 40 }}>
+              {isApplying ? "…" : "Apply"}
             </button>
-            <button className="button" type="submit" disabled={isApplying}>
-              {isApplying ? "Applying..." : "Apply filters"}
-            </button>
+          </div>
+
+          {/* Refresh */}
+          <div className="field">
+            <span>&nbsp;</span>
             <button
-              className="button button--accent"
+              className="button button--primary"
               type="button"
               onClick={handleRefresh}
               disabled={isRefreshing}
+              style={{ height: 40 }}
             >
-              {isRefreshing ? "Refreshing..." : "Refresh now"}
+              {isRefreshing ? "Syncing…" : "↻ Sync"}
             </button>
           </div>
         </div>
 
-        {showAdvancedFilters ? (
-          <div id="advanced-filters" className="filter-bar__advanced">
+        {/* Advanced */}
+        {showAdvanced && (
+          <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-subtle)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "10px", alignItems: "end" }}>
             <label className="field">
               <span>Fulfillment</span>
-              <select
-                value={fulfillment}
-                onChange={(event) =>
-                  setFulfillment(event.target.value as OrderFilters["fulfillment"])
-                }
-              >
+              <select className="select" value={fulfillment} onChange={(e) => setFulfillment(e.target.value as OrderFilters["fulfillment"])}>
                 <option value="all">All statuses</option>
                 <option value="fulfilled">Fulfilled</option>
                 <option value="unfulfilled">Unfulfilled</option>
               </select>
             </label>
-
-            <label className="field field--source">
+            <label className="field">
               <span>Source</span>
-              <input
-                aria-label="Search order sources"
-                value={sourceSearch}
-                onChange={(event) => setSourceSearch(event.target.value)}
-                placeholder="Meta, Google, Klaviyo, direct"
-              />
+              <input className="input" value={sourceSearch} onChange={(e) => setSourceSearch(e.target.value)} placeholder="Meta, Google, direct…" />
             </label>
-
             <label className="field">
               <span>From</span>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(event) => setDateFrom(event.target.value)}
-              />
+              <input type="date" className="input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             </label>
-
             <label className="field">
               <span>To</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(event) => setDateTo(event.target.value)}
-              />
+              <input type="date" className="input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </label>
 
-            <div className="filter-bar__toggles" aria-label="Advanced toggles">
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={hasIssues}
-                  onChange={(event) => setHasIssues(event.target.checked)}
-                />
-                <span>Issues only</span>
-              </label>
-
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={hasNotes}
-                  onChange={(event) => setHasNotes(event.target.checked)}
-                />
-                <span>Notes only</span>
-              </label>
-
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={hasChargeback}
-                  onChange={(event) => setHasChargeback(event.target.checked)}
-                />
-                <span>Chargeback tag</span>
-              </label>
+            {/* Toggles */}
+            <div style={{ gridColumn: "1 / -1", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              {([
+                ["hasIssues", hasIssues, setHasIssues, "Issues only"] as const,
+                ["hasNotes", hasNotes, setHasNotes, "Notes only"] as const,
+                ["hasChargeback", hasChargeback, setHasChargeback, "Chargeback tagged"] as const,
+              ] as const).map(([_key, val, setter, label]) => (
+                <label
+                  key={label}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "8px",
+                    padding: "8px 12px",
+                    border: "1px solid var(--border-visible)",
+                    borderRadius: "var(--radius-sm)",
+                    background: val ? "var(--accent-teal-soft)" : "transparent",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    color: val ? "var(--accent-teal)" : "var(--text-secondary)",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={val}
+                    onChange={(e) => setter(e.target.checked)}
+                    style={{ width: 14, height: 14, accentColor: "var(--accent-teal)" }}
+                  />
+                  {label}
+                </label>
+              ))}
+              <button className="button button--ghost" type="button" onClick={handleClear} style={{ height: 36, padding: "0 12px", fontSize: "12px" }}>
+                Clear all
+              </button>
             </div>
           </div>
-        ) : null}
+        )}
       </form>
 
-      {refreshError ? (
-        <p aria-live="polite" className="panel__error">
-          {refreshError}
-        </p>
-      ) : null}
-    </section>
+      {refreshError && (
+        <p style={{ margin: "10px 0 0", fontSize: "12px", color: "var(--accent-coral)" }}>{refreshError}</p>
+      )}
+    </div>
   );
 }

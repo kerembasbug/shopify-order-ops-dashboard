@@ -1,248 +1,151 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AnalyticsPanels } from "@/components/dashboard/analytics-panels";
-import { AppHeader } from "@/components/dashboard/app-header";
-import { buildOverviewCards } from "@/components/dashboard/build-overview-cards";
-import { FilterBar } from "@/components/dashboard/filter-bar";
-import { OrderDetailSheet } from "@/components/dashboard/order-detail-sheet";
-import { OrdersTable } from "@/components/dashboard/orders-table";
-import { OverviewStrip } from "@/components/dashboard/overview-strip";
+import { KpiCards } from "@/components/dashboard/kpi-cards";
+import { RevenueChart } from "@/components/dashboard/revenue-chart";
+import { StoreDonut } from "@/components/dashboard/store-donut";
+import { MiniOrderList } from "@/components/dashboard/mini-order-list";
 import { SyncStatusCard } from "@/components/dashboard/sync-status-card";
 import { getSessionFromToken, SESSION_COOKIE_NAME } from "@/server/auth";
 import { getEnv } from "@/server/env";
-import { parseOrderFilters } from "@/server/orders/filters";
-import {
-  getDashboardPageData,
-  getOrderDetail,
-  listSyncRuns,
-} from "@/server/orders/order-service";
+import { getDashboardPageData, listSyncRuns } from "@/server/orders/order-service";
 
 export const dynamic = "force-dynamic";
 
-type PageSearchParams = Record<string, string | string[] | undefined>;
-
-type HomePageProps = {
-  searchParams?: PageSearchParams | Promise<PageSearchParams>;
-};
-
-function toURLSearchParams(searchParams: PageSearchParams) {
-  const normalized = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (Array.isArray(value)) {
-      const lastValue = value.at(-1);
-
-      if (lastValue) {
-        normalized.set(key, lastValue);
-      }
-
-      continue;
-    }
-
-    if (value) {
-      normalized.set(key, value);
-    }
-  }
-
-  return normalized;
-}
-
-function parseOrderId(searchParams: URLSearchParams) {
-  const value = searchParams.get("orderId");
-
-  if (!value) {
-    return null;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function buildEmptyDashboardData(searchParams: URLSearchParams) {
-  const filters = parseOrderFilters(searchParams);
-
-  return {
-    filters,
-    stores: [] as Array<{
-      id: number;
-      key: string;
-      name: string;
-      status: string;
-    }>,
-    overview: {
-      filters,
-      comparisonRange: {
-        currentFrom: filters.dateFrom ?? "",
-        currentTo: filters.dateTo ?? "",
-        previousFrom: filters.dateFrom ?? "",
-        previousTo: filters.dateTo ?? "",
-      },
-      totalOrders: 0,
-      totalSalesAmount: "0",
-      previousSalesAmount: "0",
-      currencyCodes: [],
-      previousCurrencyCodes: [],
-      deltaDirection: "flat" as const,
-      deltaPercentageLabel: "0%",
-      fulfilledOrders: 0,
-      unfulfilledOrders: 0,
-      openIssuesCount: 0,
-      ordersWithNotesCount: 0,
-      chargebackOrdersCount: 0,
-      analytics: {
-        dailyTrend: [] as Array<{
-          date: string;
-          totalOrders: number;
-          totalSalesAmount: string;
-          chargebackOrdersCount: number;
-          currencyCodes: string[];
-        }>,
-        storeBreakdown: [] as Array<{
-          storeId: number;
-          storeName: string;
-          totalOrders: number;
-          totalSalesAmount: string;
-          chargebackOrdersCount: number;
-          fulfilledOrders: number;
-          currencyCodes: string[];
-        }>,
-      },
-    },
-    orders: [] as Array<{
-      id: number;
-      storeId: number;
-      storeName: string;
-      shopifyOrderNumber: number;
-      createdAt: Date | string;
-      updatedAt: Date | string;
-      customerName: string | null;
-      customerEmail: string | null;
-      countryCode: string | null;
-      currencyCode: string | null;
-      totalPrice: string;
-      financialStatus: string | null;
-      fulfillmentStatus: string | null;
-      trackingSummary: string | null;
-      salesChannel: string | null;
-      landingPagePath: string | null;
-      referrerHost: string | null;
-      utmSource: string | null;
-      utmMedium: string | null;
-      utmCampaign: string | null;
-      hasOpenIssue: boolean;
-      hasNotes: boolean;
-      hasChargeback: boolean;
-      lastSyncedAt: Date | string | null;
-    }>,
-  };
-}
-
-function getActiveStoreLabel(
-  stores: Awaited<ReturnType<typeof getDashboardPageData>>["stores"],
-  storeId: number | null,
-) {
-  if (!storeId) {
-    return "All active stores";
-  }
-
-  return stores.find((store) => store.id === storeId)?.name ?? `Store #${storeId}`;
-}
-
-async function loadDashboardState(searchParams: URLSearchParams) {
-  const selectedOrderId = parseOrderId(searchParams);
-  const [dashboardResult, syncRunsResult, orderDetailResult] = await Promise.allSettled([
-    getDashboardPageData(searchParams),
-    listSyncRuns(6),
-    selectedOrderId ? getOrderDetail(selectedOrderId) : Promise.resolve(null),
-  ]);
-  const warnings: string[] = [];
-
-  if (dashboardResult.status === "rejected") {
-    warnings.push("Live order data could not be loaded. Showing an empty dashboard shell.");
-  }
-
-  if (syncRunsResult.status === "rejected") {
-    warnings.push("Recent sync history is temporarily unavailable.");
-  }
-
-  if (orderDetailResult.status === "rejected") {
-    warnings.push("The selected order detail could not be loaded.");
-  }
-
-  return {
-    selectedOrderId,
-    warnings,
-    dashboardData:
-      dashboardResult.status === "fulfilled"
-        ? dashboardResult.value
-        : buildEmptyDashboardData(searchParams),
-    syncRuns: syncRunsResult.status === "fulfilled" ? syncRunsResult.value : [],
-    selectedOrder: orderDetailResult.status === "fulfilled" ? orderDetailResult.value : null,
-  };
-}
-
-export default async function HomePage(props: HomePageProps) {
-  const { searchParams } = props ?? {};
+export default async function HomePage() {
   const sessionToken = cookies().get(SESSION_COOKIE_NAME)?.value;
+  if (!sessionToken) redirect("/login");
 
-  if (!sessionToken) {
-    redirect("/login");
+  const session = await getSessionFromToken(sessionToken, getEnv().appSessionSecret);
+  if (!session) redirect("/login");
+
+  // Default to last 30 days for the dashboard home view
+  const params = new URLSearchParams();
+  const today = new Date();
+  const from = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 29));
+  params.set("from", from.toISOString().slice(0, 10));
+  params.set("to", today.toISOString().slice(0, 10));
+
+  const [data, syncRuns] = await Promise.all([
+    getDashboardPageData(params).catch(() => null),
+    listSyncRuns(3).catch(() => []),
+  ]);
+
+  if (!data) {
+    return (
+      <div>
+        <div className="top-bar">
+          <div className="top-bar__title">
+            <h1>Dashboard</h1>
+            <p className="top-bar__subtitle">Last 30 days overview</p>
+          </div>
+        </div>
+        <div className="panel">
+          <p style={{ color: "var(--accent-coral)", margin: 0 }}>
+            Could not load dashboard data. Check your database connection.
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  const session = await getSessionFromToken(
-    sessionToken,
-    getEnv().appSessionSecret,
-  );
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  const resolvedSearchParams = (await Promise.resolve(searchParams ?? {})) as PageSearchParams;
-  const normalizedSearchParams = toURLSearchParams(resolvedSearchParams);
-  const currentQuery = normalizedSearchParams.toString();
-  const { dashboardData, selectedOrder, selectedOrderId, syncRuns, warnings } =
-    await loadDashboardState(normalizedSearchParams);
-  const activeStoreLabel = getActiveStoreLabel(
-    dashboardData.stores,
-    dashboardData.filters.storeId,
-  );
-  const activeStoreCount = dashboardData.stores.filter((store) => store.status === "active").length;
+  const { overview, orders, stores } = data;
+  const activeStoreCount = stores.filter((s) => s.status === "active").length;
 
   return (
-    <main className="dashboard-shell">
-      <AppHeader
-        storeCount={activeStoreCount || dashboardData.stores.length}
-        activeStoreLabel={activeStoreLabel}
-      />
+    <div>
+      {/* Top bar */}
+      <div className="top-bar">
+        <div className="top-bar__title">
+          <h1>Dashboard</h1>
+          <p className="top-bar__subtitle">
+            {activeStoreCount} active store{activeStoreCount !== 1 ? "s" : ""} · Last 30 days
+          </p>
+        </div>
 
-      {warnings.map((warning) => (
-        <section key={warning} className="warning-banner" role="status">
-          {warning}
-        </section>
-      ))}
-
-      <div className="dashboard-stack">
-        <FilterBar filters={dashboardData.filters} stores={dashboardData.stores} />
-        <OverviewStrip cards={buildOverviewCards(dashboardData.overview)} />
-        <AnalyticsPanels analytics={dashboardData.overview.analytics} />
-        <OrdersTable
-          rows={dashboardData.orders}
-          currentQuery={currentQuery}
-          selectedOrderId={selectedOrderId}
-        />
-        <section className="dashboard-secondary">
-          <SyncStatusCard runs={syncRuns} />
-        </section>
+        {/* Sync status chips */}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          {syncRuns.slice(0, 1).map((run) => (
+            <div
+              key={run.id}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "var(--radius-sm)",
+                fontSize: "12px",
+                background:
+                  run.status === "succeeded"
+                    ? "var(--accent-teal-soft)"
+                    : run.status === "failed"
+                    ? "var(--accent-coral-soft)"
+                    : "var(--bg-glass)",
+                color:
+                  run.status === "succeeded"
+                    ? "var(--accent-teal)"
+                    : run.status === "failed"
+                    ? "var(--accent-coral)"
+                    : "var(--text-secondary)",
+                border: "1px solid var(--border-subtle)",
+              }}
+            >
+              Sync: {run.status}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {selectedOrderId ? (
-        <OrderDetailSheet
-          orderId={selectedOrderId}
-          order={selectedOrder}
-          currentQuery={currentQuery}
-        />
-      ) : null}
-    </main>
+      {/* KPI Cards */}
+      <KpiCards data={overview} />
+
+      {/* Charts row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "20px", marginBottom: "20px" }}>
+        {/* Revenue chart */}
+        <div className="panel">
+          <div className="panel__header">
+            <div>
+              <p className="panel__eyebrow">Revenue Trend</p>
+              <h2 className="panel__title" style={{ fontSize: "16px" }}>Daily gross sales</h2>
+            </div>
+            <div style={{ display: "flex", gap: "12px", fontSize: "12px", color: "var(--text-secondary)", alignItems: "center" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-teal)", display: "inline-block" }} />
+                Revenue
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent-coral)", display: "inline-block" }} />
+                Chargeback
+              </span>
+            </div>
+          </div>
+          <RevenueChart data={overview.analytics.dailyTrend} />
+        </div>
+
+        {/* Donut chart */}
+        <div className="panel">
+          <div className="panel__header">
+            <div>
+              <p className="panel__eyebrow">Store Ranking</p>
+              <h2 className="panel__title" style={{ fontSize: "16px" }}>By orders</h2>
+            </div>
+          </div>
+          <StoreDonut data={overview.analytics.storeBreakdown} />
+        </div>
+      </div>
+
+      {/* Recent Orders + Sync */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "20px" }}>
+        {/* Mini order list */}
+        <div className="panel" style={{ padding: 0 }}>
+          <div className="panel__header" style={{ padding: "20px 20px 0" }}>
+            <div>
+              <p className="panel__eyebrow">Order Queue</p>
+              <h2 className="panel__title" style={{ fontSize: "16px" }}>Recent orders</h2>
+            </div>
+          </div>
+          <MiniOrderList rows={orders} />
+        </div>
+
+        {/* Sync status */}
+        <SyncStatusCard runs={syncRuns} />
+      </div>
+    </div>
   );
 }

@@ -41,21 +41,16 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
-      <label style={{ display: "grid", gap: "8px" }}>
-        <span style={{ fontWeight: 600 }}>Password</span>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <label className="field">
+        <span>Password</span>
         <input
           name="password"
           type="password"
           required
           autoComplete="current-password"
-          style={{
-            width: "100%",
-            borderRadius: "14px",
-            border: "1px solid #d5c7b1",
-            background: "#fffdf9",
-            padding: "12px 14px",
-          }}
+          className="input"
+          style={{ height: "48px" }}
         />
       </label>
 
@@ -64,10 +59,12 @@ export function LoginForm() {
           role="alert"
           style={{
             margin: 0,
-            borderRadius: "12px",
-            background: "#fbe9e7",
-            color: "#8d2f1b",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--accent-coral-soft)",
+            color: "var(--accent-coral)",
             padding: "12px 14px",
+            fontSize: "13px",
+            border: "1px solid rgba(255, 107, 107, 0.2)"
           }}
         >
           {error}
@@ -77,14 +74,11 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isSubmitting}
+        className="button button--primary"
         style={{
-          border: 0,
-          borderRadius: "999px",
-          background: "#2f5d50",
-          color: "#ffffff",
-          padding: "14px 18px",
-          fontWeight: 700,
-          cursor: isSubmitting ? "wait" : "pointer",
+          height: "48px",
+          width: "100%",
+          fontSize: "16px"
         }}
       >
         {isSubmitting ? "Signing in..." : "Sign in"}

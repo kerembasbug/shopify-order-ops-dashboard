@@ -1,4 +1,6 @@
-import { formatDateTime, formatDuration, formatStatusLabel } from "@/components/dashboard/dashboard-utils";
+import React from "react";
+import { formatDateTime, formatDuration } from "@/components/dashboard/dashboard-utils";
+import { StatusPill } from "@/components/shared/status-pill";
 
 type SyncRunItem = {
   id: number;
@@ -12,62 +14,63 @@ type SyncRunItem = {
   errorMessage: string | null;
 };
 
-type SyncStatusCardProps = {
-  runs: SyncRunItem[];
-};
+function syncTone(status: string) {
+  if (status === "succeeded") return "success" as const;
+  if (status === "failed") return "danger" as const;
+  if (status === "running") return "warning" as const;
+  return "neutral" as const;
+}
 
-export function SyncStatusCard({ runs }: SyncStatusCardProps) {
+export function SyncStatusCard({ runs }: { runs: SyncRunItem[] }) {
   return (
-    <section className="panel panel--sync">
+    <div className="panel">
       <div className="panel__header">
         <div>
-          <p className="panel__eyebrow">Sync health</p>
-          <h2 className="panel__title">Recent runs</h2>
+          <p className="panel__eyebrow">Sync Activity</p>
+          <h2 className="panel__title" style={{ fontSize: "16px" }}>Recent syncs</h2>
         </div>
       </div>
 
       {runs.length === 0 ? (
-        <p className="panel__empty">No sync runs yet. Trigger a manual refresh to seed history.</p>
+        <p style={{ color: "var(--text-muted)", fontSize: "13px", margin: 0 }}>No sync runs recorded yet.</p>
       ) : (
-        <ul className="sync-run-list">
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {runs.map((run) => (
-            <li key={run.id} className="sync-run-item">
-              <div className="sync-run-item__heading">
-                <div>
-                  <p className="sync-run-item__store">{run.storeName}</p>
-                  <p className="sync-run-item__meta">
-                    {formatStatusLabel(run.triggerType)} • {formatDateTime(run.startedAt)}
-                  </p>
-                </div>
-                <span
-                  className={`status-pill status-pill--${run.status === "failed" ? "danger" : run.status === "succeeded" ? "success" : "muted"}`}
-                >
-                  {formatStatusLabel(run.status)}
-                </span>
+            <div
+              key={run.id}
+              style={{
+                padding: "14px",
+                background: "var(--bg-glass)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-sm)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: "13px" }}>{run.storeName}</p>
+                <StatusPill label={run.status} tone={syncTone(run.status)} />
               </div>
-
-              <dl className="sync-run-item__stats">
-                <div>
-                  <dt>Scanned</dt>
-                  <dd>{run.ordersScanned}</dd>
+              <p style={{ margin: "0 0 8px", fontSize: "12px", color: "var(--text-secondary)" }}>
+                {run.triggerType} · {formatDateTime(run.startedAt)} · {formatDuration(run.startedAt, run.finishedAt)}
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                <div style={{ fontSize: "12px" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Scanned </span>
+                  <strong>{run.ordersScanned}</strong>
                 </div>
-                <div>
-                  <dt>Changed</dt>
-                  <dd>{run.ordersChanged}</dd>
+                <div style={{ fontSize: "12px" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Changed </span>
+                  <strong>{run.ordersChanged}</strong>
                 </div>
-                <div>
-                  <dt>Duration</dt>
-                  <dd>{formatDuration(run.startedAt, run.finishedAt)}</dd>
-                </div>
-              </dl>
-
-              {run.errorMessage ? (
-                <p className="sync-run-item__error">{run.errorMessage}</p>
-              ) : null}
-            </li>
+              </div>
+              {run.errorMessage && (
+                <p style={{ margin: "8px 0 0", fontSize: "12px", color: "var(--accent-coral)" }}>
+                  {run.errorMessage}
+                </p>
+              )}
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-    </section>
+    </div>
   );
 }
