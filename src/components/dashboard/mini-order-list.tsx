@@ -10,6 +10,7 @@ import { StatusPill, financialTone, fulfillmentTone } from "@/components/shared/
 type MiniOrderRow = {
   id: number;
   shopifyOrderNumber: number;
+  storeName: string;
   customerName: string | null;
   createdAt: Date | string;
   currencyCode: string | null;
@@ -62,6 +63,9 @@ export function MiniOrderList({ rows }: MiniOrderListProps) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {row.customerName ?? "Unknown"}
+            </p>
+            <p style={{ margin: 0, fontSize: "11px", color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {row.storeName}
             </p>
           </div>
 
