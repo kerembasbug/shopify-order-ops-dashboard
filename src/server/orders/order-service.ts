@@ -792,10 +792,10 @@ export async function getOrderDetail(orderId: number) {
 export async function listSyncRuns(limit = 20) {
   await ensureDatabaseCompatibility();
 
-  const statusPriority = sql<number>`case
+  const activityPriority = sql<number>`case
     when ${syncRuns.status} = 'running' then 0
-    when ${syncRuns.status} = 'failed' then 1
-    when ${syncRuns.status} = 'succeeded' then 2
+    when ${syncRuns.status} = 'pending' then 1
+    when ${syncRuns.status} = 'failed' then 2
     else 3
   end`;
 
@@ -814,6 +814,6 @@ export async function listSyncRuns(limit = 20) {
     })
     .from(syncRuns)
     .innerJoin(stores, eq(stores.id, syncRuns.storeId))
-    .orderBy(statusPriority, desc(syncRuns.startedAt))
+    .orderBy(desc(syncRuns.startedAt), activityPriority)
     .limit(limit);
 }
