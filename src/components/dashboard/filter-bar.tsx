@@ -151,70 +151,43 @@ export function FilterBar({ stores, filters, basePath }: FilterBarProps) {
     <div className="panel" style={{ marginBottom: "20px" }}>
       <form onSubmit={handleApply}>
         {/* Primary controls */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "end" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
           {/* Store */}
-          <div className="field">
-            <span>Store</span>
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="button"
-                style={{ 
-                  height: 40, padding: "0 12px", fontSize: "12px",
-                  background: storeId === "" ? "var(--accent-teal)" : "var(--bg-glass)",
-                  color: storeId === "" ? "#000" : "var(--text-secondary)",
-                  border: storeId === "" ? "none" : "1px solid var(--border-visible)"
-                }}
-                onClick={() => setStoreId("")}
-              >
-                All
-              </button>
-              {stores.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="button"
-                  style={{ 
-                    height: 40, padding: "0 12px", fontSize: "12px",
-                    background: storeId === String(s.id) ? "var(--accent-teal)" : "var(--bg-glass)",
-                    color: storeId === String(s.id) ? "#000" : "var(--text-secondary)",
-                    border: storeId === String(s.id) ? "none" : "1px solid var(--border-visible)"
-                  }}
-                  onClick={() => setStoreId(String(s.id))}
-                >
-                  {s.name}{s.status !== "active" ? " (inactive)" : ""}
-                </button>
-              ))}
-            </div>
-          </div>
+          <select 
+            className="select" 
+            value={storeId} 
+            onChange={(e) => setStoreId(e.target.value)}
+            style={{ width: "auto", minWidth: "140px", height: "40px", margin: 0 }}
+          >
+            <option value="">All stores</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}{s.status !== "active" ? " (inactive)" : ""}
+              </option>
+            ))}
+          </select>
 
           {/* Search */}
-          <label className="field" style={{ flex: 1, minWidth: "200px" }}>
-            <span>Search</span>
-            <input
-              className="input"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Order #, customer, email…"
-            />
-          </label>
+          <input
+            className="input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search orders, customers..."
+            style={{ flex: 1, minWidth: "200px", height: "40px", margin: 0 }}
+          />
 
           {/* Date presets */}
-          <div className="field">
-            <span>Period</span>
-            <div style={{ display: "flex", gap: "6px" }}>
-              {(["today", "last7", "last30", "month"] as DatePreset[]).map((p) => (
-                <button key={p} className="button button--ghost" type="button" onClick={() => handlePresetClick(p)}
-                  style={{ height: 40, padding: "0 10px", fontSize: "12px" }}>
-                  {p === "today" ? "Today" : p === "last7" ? "7d" : p === "last30" ? "30d" : "Month"}
-                </button>
-              ))}
-            </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {(["today", "last7", "last30", "month"] as DatePreset[]).map((p) => (
+              <button key={p} className="button button--ghost" type="button" onClick={() => handlePresetClick(p)}
+                style={{ height: 40, padding: "0 10px", fontSize: "12px" }}>
+                {p === "today" ? "Today" : p === "last7" ? "7d" : p === "last30" ? "30d" : "Month"}
+              </button>
+            ))}
           </div>
 
-          {/* Advanced toggle */}
-          <div className="field">
-            <span>&nbsp;</span>
+          {/* Actions */}
+          <div style={{ display: "flex", gap: "6px" }}>
             <button
               className="button button--ghost"
               type="button"
@@ -224,19 +197,11 @@ export function FilterBar({ stores, filters, basePath }: FilterBarProps) {
             >
               {showAdvanced ? "Less" : "Filters"}
             </button>
-          </div>
 
-          {/* Apply */}
-          <div className="field">
-            <span>&nbsp;</span>
             <button className="button button--ghost" type="submit" disabled={isApplying} style={{ height: 40 }}>
               {isApplying ? "…" : "Apply"}
             </button>
-          </div>
 
-          {/* Refresh */}
-          <div className="field">
-            <span>&nbsp;</span>
             <button
               className="button button--primary"
               type="button"
